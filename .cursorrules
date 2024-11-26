@@ -1,0 +1,324 @@
+# nlip 项目代码规范配置
+
+# 项目特定规则
+project:
+  name: nlip
+  package_prefix:
+    go: "github.com/nlip"
+  artifact_prefix: "nlip"
+  docker_prefix: "nlip"
+
+# 全局规则
+global:
+  charset: utf-8
+  end_of_line: lf
+  indent_style: space
+  indent_size: 4
+  trim_trailing_whitespace: true
+  insert_final_newline: true
+  max_line_length: 120
+
+# Go 代码规则
+go:
+  indent_size: 4
+  package_naming: lowercase
+  file_naming: snake_case
+  struct_naming: PascalCase
+  interface_naming: PascalCase
+  constant_naming: PascalCase
+  variable_naming: camelCase
+  test_file_suffix: _test
+  imports:
+    group_by_type: true
+    order:
+      - standard
+      - external
+      - project
+    alias_pattern: "^[a-z][a-zA-Z0-9]+$"
+  fiber:
+    handler_naming: Handle{Action}{Resource}
+    middleware_naming: {Action}Middleware
+    route_group_prefix: /api/v1/nlip
+    error_handling:
+      use_custom_error: true
+      error_response_format:
+        code: int
+        message: string
+        data: interface{}
+
+# React 代码规则
+react:
+  indent_size: 2
+  component_naming: PascalCase
+  hook_naming: use[Name]
+  file_naming:
+    component: PascalCase
+    util: camelCase
+    test: camelCase.test
+  style:
+    css_modules: true
+    sass_indent: 2
+  typescript:
+    strict: true
+    no_any: true
+
+# TypeScript 规则
+typescript:
+  indent_size: 2
+  quote_type: single
+  semicolons: true
+  trailing_comma: es5
+  arrow_parens: always
+  function_naming: camelCase
+  variable_naming: camelCase
+
+# Flutter 代码规则
+flutter:
+  indent_size: 2
+  class_naming: PascalCase
+  function_naming: camelCase
+  constant_naming: UPPER_SNAKE_CASE
+  variable_naming: camelCase
+  package_naming: lowercase
+  widget_naming: PascalCase
+  imports_order:
+    - dart:io
+    - dart:async
+    - package:flutter
+    - package:provider
+    - relative
+  max_line_length: 80
+
+# 目录结构规则
+directory_structure:
+  src:
+    backend:
+      - handlers
+        - auth
+        - spaces
+        - clips
+      - middleware
+        - auth
+        - validator
+        - logger
+      - models
+        - user
+        - space
+        - clip
+      - routes
+        - api.go
+        - auth.go
+        - spaces.go
+        - clips.go
+      - utils
+        - jwt
+        - validator
+        - storage
+      - config
+        - app.go
+        - database.go
+    frontend:
+      web:
+        - components
+          - common
+          - layout
+          - features
+        - views
+          - auth
+          - dashboard
+          - spaces
+          - clips
+        - store
+          - slices
+          - hooks
+        - api
+          - services
+          - config
+        - utils
+          - helpers
+          - constants
+        - hooks
+          - common
+          - features
+        - types
+        - assets
+          - images
+          - styles
+      extension:
+        - popup
+        - background
+        - content
+      flutter:
+        lib:
+          - presentation
+          - domain
+          - data
+          - core
+          - di
+
+# 测试规则
+test:
+  go:
+    naming: "{file}_test.go"
+    coverage_threshold: 80
+  react:
+    naming: "{file}.test.tsx"
+    coverage_threshold: 80
+    test_types:
+      - unit
+      - integration
+      - e2e
+
+# 文档规则
+documentation:
+  go:
+    required:
+      - package
+      - exported_functions
+      - interfaces
+      - complex_types
+    format:
+      package: |
+        // Package {name} provides ...
+      function: |
+        // {FunctionName} ...
+        // Parameters:
+        //   - param: description
+        // Returns:
+        //   - return: description
+      interface: |
+        // {InterfaceName} represents ...
+  react:
+    required:
+      - components
+      - hooks
+      - utils
+      - types
+# 安全规则
+security:
+  jwt:
+    token_expiry: 24h
+  file_upload:
+    max_size: 10MB
+    allowed_types:
+      - image/*
+      - text/*
+      - application/pdf
+  input_validation:
+    required: true
+    sanitize: true
+
+# 命名规则
+naming_rules:
+  # 通用命名规则
+  common:
+    max_length: 50
+    min_length: 2
+    allowed_chars: "[a-zA-Z0-9_-]"
+    
+  # 后端命名规则
+  backend:
+    # 包命名规则
+    package:
+      pattern: "^[a-z][a-z0-9]*$"
+      examples:
+        - auth
+        - spaces
+        - clips
+    
+    # 文件命名规则
+    file:
+      handler: "{resource}_{action}_handler.go"
+      middleware: "{action}_middleware.go"
+      model: "{resource}_model.go"
+      util: "{name}_util.go"
+      test: "{file}_test.go"
+      examples:
+        - user_login_handler.go
+        - auth_middleware.go
+        - space_model.go
+    
+    # API路由命名规则
+    api:
+      path: "/api/v1/nlip/{resource}/{action}"
+      resource_plural: true
+      examples:
+        - /api/v1/nlip/spaces/list
+        - /api/v1/nlip/clips/upload
+    
+    # 函数命名规则
+    function:
+      handler: "Handle{Action}{Resource}"
+      middleware: "{Action}Middleware"
+      model: "New{Resource}"
+      util: "{Action}{Resource}"
+      examples:
+        - HandleCreateSpace
+        - AuthMiddleware
+        - NewUser
+    
+    # 变量命名规则
+    variable:
+      model_instance: "{resource}Model"
+      request: "{resource}{Action}Request"
+      response: "{resource}{Action}Response"
+      examples:
+        - userModel
+        - spaceCreateRequest
+        - clipUploadResponse
+    
+    # 常量命名规则
+    constant:
+      pattern: "^[A-Z][A-Z0-9_]*$"
+      prefix: "NLIP_"
+      examples:
+        - NLIP_MAX_ITEMS
+        - NLIP_DEFAULT_EXPIRY
+    
+    # 错误码命名规则
+    error_code:
+      pattern: "ERR_{MODULE}_{TYPE}"
+      examples:
+        - ERR_AUTH_INVALID_TOKEN
+        - ERR_SPACE_NOT_FOUND
+
+  # 前端命名规则
+  frontend:
+    component:
+      pattern: "[A-Z][a-zA-Z0-9]*"
+      examples:
+        - SpaceList
+        - ClipUpload
+    hook:
+      pattern: "use[A-Z][a-zA-Z0-9]*"
+      examples:
+        - useAuth
+        - useSpace
+    store:
+      slice: "{name}Slice"
+      selector: "select{Name}"
+      action: "{action}{Name}"
+
+  # Flutter命名规则
+  flutter:
+    # 页面命名规则
+    page:
+      pattern: "{Resource}Page"
+      examples:
+        - SpaceListPage
+        - ClipDetailPage
+    
+    # Widget命名规则
+    widget:
+      pattern: "Nlip{Resource}{Type}"
+      examples:
+        - NlipSpaceCard
+        - NlipClipList
+    
+    # 模型命名规则
+    model:
+      pattern: "{Resource}Model"
+      examples:
+        - UserModel
+        - SpaceModel
+  

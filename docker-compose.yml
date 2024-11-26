@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  nlip-web:
+    build: .
+    container_name: nlip-web
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - nlip-server
+    networks:
+      - nlip-network
+
+  nlip-server:
+    image: nlip-server
+    container_name: nlip-server
+    ports:
+      - "3000:3000"
+    environment:
+      - APP_ENV=production
+    volumes:
+      - nlip-data:/app/data
+      - nlip-uploads:/app/uploads
+    networks:
+      - nlip-network
+
+networks:
+  nlip-network:
+    driver: bridge
+
+volumes:
+  nlip-data:
+  nlip-uploads: 

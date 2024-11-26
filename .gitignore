@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+
+# Temporary files
+tmp/
+temp/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Binary files
+bin/
+
+# Frontend specific
+# Vite
+.vite/
+*.local
+
+# Flutter/Dart specific
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+ios/Pods/
+android/.gradle/
+
+# Go specific
+*.test
+*.out 
+
+ask.md
+light.md
+plan.md

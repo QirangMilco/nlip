@@ -1,0 +1,3 @@
+{
+    "jwt_secret": "your-super-secret-key-at-least-32-chars"
+} 

@@ -1,0 +1,36 @@
+.container {
+  :global {
+    .ant-table-wrapper {
+      background: #fff;
+      border-radius: var(--border-radius-base);
+    }
+
+    .ant-table {
+      .ant-table-thead > tr > th {
+        background: #fafafa;
+        font-weight: 500;
+      }
+    }
+
+    .ant-table-pagination {
+      margin: 16px 0;
+    }
+  }
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--error-color);
+
+  .retry {
+    margin-top: 8px;
+    color: var(--primary-color);
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+} 

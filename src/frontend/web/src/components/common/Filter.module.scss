@@ -1,0 +1,15 @@
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.select {
+  min-width: 120px;
+  
+  :global {
+    .ant-select-selection-placeholder {
+      color: rgba(0, 0, 0, 0.45);
+    }
+  }
+} 

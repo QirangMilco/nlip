@@ -1,0 +1,9 @@
+.tooltip {
+  :global {
+    .ant-tooltip-inner {
+      font-size: 12px;
+      padding: 6px 8px;
+      min-height: 24px;
+    }
+  }
+} 

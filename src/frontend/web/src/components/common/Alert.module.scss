@@ -1,0 +1,13 @@
+.alert {
+  margin-bottom: 16px;
+  
+  :global {
+    .ant-alert-message {
+      font-size: 14px;
+    }
+    
+    .ant-alert-description {
+      font-size: 12px;
+    }
+  }
+} 

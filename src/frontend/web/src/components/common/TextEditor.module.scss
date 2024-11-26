@@ -1,0 +1,15 @@
+.container {
+  width: 100%;
+}
+
+.editor {
+  width: 100%;
+  resize: vertical;
+  min-height: 100px;
+  font-size: 14px;
+  line-height: 1.5;
+  
+  &:focus {
+    box-shadow: none;
+  }
+} 

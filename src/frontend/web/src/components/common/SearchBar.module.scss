@@ -1,0 +1,15 @@
+.container {
+  width: 100%;
+  max-width: 300px;
+
+  :global {
+    .ant-input-affix-wrapper {
+      border-radius: var(--border-radius-base);
+    }
+
+    .ant-input-search-button {
+      height: 32px;
+      border-radius: 0 var(--border-radius-base) var(--border-radius-base) 0;
+    }
+  }
+} 

@@ -1,0 +1,40 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+
+  @media (forced-colors: active) {
+    forced-color-adjust: auto;
+  }
+}
+
+.fullScreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: 1000;
+
+  @media (forced-colors: active) {
+    forced-color-adjust: auto;
+  }
+}
+
+.spinWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.loadingText {
+  margin-top: 8px;
+  color: rgba(0, 0, 0, 0.85);
+  font-size: 14px;
+} 
