@@ -19,7 +19,19 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   token: string;
-  user: User;
+  user: User | null;
+  needChangePwd: boolean;
+}
+
+// 修改密码接口
+export interface ChangePasswordRequest {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordResponse {
+  code: number;
+  message: string;
 }
 
 // 空间相关类型

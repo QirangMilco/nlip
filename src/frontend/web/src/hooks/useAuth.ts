@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
 import { setAuth, clearAuth } from '@/store/slices/authSlice';
 import { validateTokenAndGetUser, login as loginApi } from '@/api/auth';
-import type { LoginRequest, User } from '@/store/types';
+import type { LoginRequest } from '@/store/types';
 
 export const useAuth = () => {
   const navigate = useNavigate();
@@ -89,7 +89,7 @@ export const useAuth = () => {
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     if (storedToken && !token) {
-      dispatch(setAuth({ token: storedToken, user: undefined }));
+      dispatch(setAuth({ token: storedToken, user: null }));
     }
     validateAuth();
   }, [validateAuth, dispatch, token]);

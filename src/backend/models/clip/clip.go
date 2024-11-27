@@ -6,6 +6,7 @@ import (
 
 type Clip struct {
     ID          string    `json:"id"`
+    ClipID      string    `json:"clipId"`
     SpaceID     string    `json:"spaceId"`
     ContentType string    `json:"contentType"`
     Content     string    `json:"content,omitempty"`

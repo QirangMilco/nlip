@@ -3,11 +3,11 @@ package spaces
 import (
     "database/sql"
     "github.com/gofiber/fiber/v2"
-    "github.com/google/uuid"
     "nlip/config"
     "nlip/models/space"
     "nlip/utils/logger"
     "nlip/utils/db"
+    "nlip/utils/id"
 )
 
 // HandleListSpaces 获取空间列表
@@ -82,7 +82,7 @@ func HandleCreateSpace(c *fiber.Ctx) error {
 
     // 创建空间
     s := space.Space{
-        ID:            uuid.New().String(),
+        ID: id.GenerateSpaceID(),
         Name:          req.Name,
         Type:          req.Type,
         OwnerID:       userID,

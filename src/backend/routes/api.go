@@ -31,6 +31,7 @@ func SetupRoutes(app *fiber.App) {
 	authRoutes.Post("/login", validator.ValidateBody(&user.LoginRequest{}), authHandler.HandleLogin)
 	authRoutes.Post("/register", validator.ValidateBody(&user.RegisterRequest{}), authHandler.HandleRegister)
 	authRoutes.Get("/me", authHandler.HandleGetCurrentUser)
+	authRoutes.Post("/change-password", auth.AuthMiddleware(), validator.ValidateBody(&user.ChangePasswordRequest{}), authHandler.HandleChangePassword)
 
 	// 需要认证的路由组
 	authenticated := api.Use(auth.AuthMiddleware())
@@ -46,8 +47,8 @@ func SetupRoutes(app *fiber.App) {
 	spaceRoutes.Put("/:id", validator.ValidateBody(&space.UpdateSpaceRequest{}), spaces.HandleUpdateSpace)
 	spaceRoutes.Delete("/:id", spaces.HandleDeleteSpace)
 
-	// 剪贴板路由
-	clipRoutes := authenticated.Group("/clips")
+	// 空间下的剪贴板路由
+	clipRoutes := spaceRoutes.Group("/:spaceId/clips")
 	clipRoutes.Post("/upload", validator.ValidateBody(&clip.UploadClipRequest{}), clips.HandleUploadClip)
 	clipRoutes.Get("/list", clips.HandleListClips)
 	clipRoutes.Get("/:id", clips.HandleGetClip)

@@ -4,7 +4,7 @@ import { Space } from '@/store/slices/spaceSlice';
 
 export const listSpaces = async (): Promise<Space[]> => {
   const response = await http.get('/spaces/list');
-  return response.data;
+  return response.data["spaces"];
 };
 
 export const createSpace = async (data: CreateSpaceRequest): Promise<Space> => {
@@ -19,4 +19,9 @@ export const updateSpace = async (id: string, data: UpdateSpaceRequest): Promise
 
 export const deleteSpace = async (id: string): Promise<void> => {
   await http.delete(`/spaces/${id}`);
+};
+
+export const getSpace = async (id: string): Promise<Space> => {
+  const response = await http.get(`/spaces/${id}`);
+  return response.data;
 }; 

@@ -1,112 +1,75 @@
-import { useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
-import { RootState } from '@/store';
-import {
-  setClips,
-  setCurrentClip,
-  addClip,
-  deleteClip,
-  setLoading,
-  setError,
-} from '@/store/slices/clipSlice';
 import * as clipApi from '@/api/clips';
-import { UploadClipRequest } from '@/store/types';
-import { useNavigate } from 'react-router-dom';
+import { Clip, UploadClipRequest } from '@/store/types';
 
-export const useClip = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { clips, currentClip, loading, error } = useSelector(
-    (state: RootState) => state.clip
-  );
+export const useClips = (spaceId: string) => {
+  const queryClient = useQueryClient();
 
-  // 获取剪贴板内容列表
-  const fetchClips = useCallback(async (spaceId: string) => {
-    try {
-      dispatch(setLoading(true));
-      const data = await clipApi.listClips(spaceId);
-      dispatch(setClips(data.data?.clips || []));
-    } catch (error: any) {
-      if (error.status === 401) {
-        navigate('/login');
-      }
-      dispatch(setError(error.message));
-      message.error(error.message);
-    } finally {
-      dispatch(setLoading(false));
-    }
-  }, [dispatch, navigate]);
+  // 获取剪贴板列表
+  const { data: clips = [], isLoading, error } = useQuery<Clip[]>({
+    queryKey: ['clips', spaceId],
+    queryFn: () => clipApi.getClips(spaceId),
+    enabled: !!spaceId,
+  });
 
-  // 上传内容
-  const uploadClip = useCallback(async (data: UploadClipRequest) => {
-    try {
-      dispatch(setLoading(true));
-      const newClip = await clipApi.uploadClip(data);
-      dispatch(addClip(newClip));
+  // 上传剪贴板内容
+  const { mutateAsync: uploadClip, isPending: isUploading } = useMutation({
+    mutationFn: (data: UploadClipRequest) => clipApi.uploadClip(spaceId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clips', spaceId] });
       message.success('上传成功');
-      return newClip;
-    } catch (error: any) {
-      dispatch(setError(error.message));
-      message.error(error.message);
-      throw error;
-    } finally {
-      dispatch(setLoading(false));
-    }
-  }, [dispatch]);
+    },
+    onError: (error: Error) => {
+      message.error(error.message || '上传失败');
+    },
+  });
 
-  // 删除内容
-  const deleteClipById = useCallback(async (id: string) => {
-    try {
-      dispatch(setLoading(true));
-      await clipApi.deleteClip(id);
-      dispatch(deleteClip(id));
+  // 删除剪贴板内容
+  const { mutateAsync: deleteClip, isPending: isDeleting } = useMutation({
+    mutationFn: (clipId: string) => clipApi.deleteClip(spaceId, clipId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clips', spaceId] });
       message.success('删除成功');
-    } catch (error: any) {
-      dispatch(setError(error.message));
-      message.error(error.message);
-      throw error;
-    } finally {
-      dispatch(setLoading(false));
-    }
-  }, [dispatch]);
+    },
+    onError: (error: Error) => {
+      message.error(error.message || '删除失败');
+    },
+  });
 
-  // 下载文件
-  const downloadClip = useCallback(async (id: string, filename: string) => {
-    try {
-      dispatch(setLoading(true));
-      const blob = await clipApi.downloadClip(id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error: any) {
-      dispatch(setError(error.message));
-      message.error(error.message);
-      throw error;
-    } finally {
-      dispatch(setLoading(false));
-    }
-  }, [dispatch]);
-
-  // 设置当前内容
-  const selectClip = useCallback((clip: any) => {
-    dispatch(setCurrentClip(clip));
-  }, [dispatch]);
+  // 下载剪贴板内容
+  const { mutateAsync: downloadClip, isPending: isDownloading } = useMutation({
+    mutationFn: (clipId: string) => clipApi.downloadClip(spaceId, clipId),
+    onError: (error: Error) => {
+      message.error(error.message || '下载失败');
+    },
+  });
 
   return {
     clips,
-    currentClip,
-    loading,
+    isLoading,
     error,
-    fetchClips,
     uploadClip,
-    deleteClipById,
+    isUploading,
+    deleteClip,
+    isDeleting,
     downloadClip,
-    selectClip,
+    isDownloading,
+  };
+};
+
+// 获取单个剪贴板内容的hook
+export const useClip = (spaceId: string, clipId: string) => {
+  const { data: clip, isLoading, error } = useQuery({
+    queryKey: ['clip', spaceId, clipId],
+    queryFn: () => clipApi.getClip(spaceId, clipId),
+    enabled: !!spaceId && !!clipId,
+  });
+
+  return {
+    clip,
+    isLoading,
+    error,
   };
 }; 

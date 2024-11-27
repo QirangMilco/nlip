@@ -9,7 +9,7 @@ import dayjs from 'dayjs';
 
 const SpacesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { spaces, loading, fetchSpaces, createSpace, updateSpaceById, deleteSpaceById } = useSpace();
+  const { spaces, loading, error, fetchSpaces, createSpace, updateSpaceById, deleteSpaceById } = useSpace();
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [editingSpace, setEditingSpace] = React.useState<SpaceType | null>(null);
 

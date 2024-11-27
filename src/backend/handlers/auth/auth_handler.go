@@ -23,13 +23,13 @@ func HandleLogin(c *fiber.Ctx) error {
     // 查找用户
     var u user.User
     err := config.DB.QueryRow(
-        "SELECT id, username, password_hash, is_admin, created_at FROM nlip_users WHERE username = ?",
+        "SELECT id, username, password_hash, is_admin, created_at, need_change_pwd FROM nlip_users WHERE username = ?",
         req.Username,
-    ).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.CreatedAt)
+    ).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.CreatedAt, &u.NeedChangePwd)
 
     if err != nil {
         logger.Warning("用户名不存在: %s", req.Username)
-        return fiber.NewError(fiber.StatusUnauthorized, "用户名或密码错误")
+        return fiber.NewError(fiber.StatusUnauthorized, "用户名不存在")
     }
 
     // 验证密码
@@ -45,10 +45,11 @@ func HandleLogin(c *fiber.Ctx) error {
         return fiber.NewError(fiber.StatusInternalServerError, "生成令牌失败")
     }
 
-    logger.Info("用户登录成功: username=%s, id=%s", u.Username, u.ID)
+    logger.Info("用户登录成功: username=%s, id=%s, needChangePwd=%t", u.Username, u.ID, u.NeedChangePwd)
     return c.JSON(user.AuthResponse{
         Token: token,
         User:  &u,
+        NeedChangePwd: u.NeedChangePwd,
     })
 }
 
@@ -126,5 +127,59 @@ func HandleGetCurrentUser(c *fiber.Ctx) error {
             "isAdmin": user.IsAdmin,
         },
         "message": "获取用户信息成功",
+    })
+}
+
+// HandleChangePassword 处理修改密码请求
+func HandleChangePassword(c *fiber.Ctx) error {
+    var req user.ChangePasswordRequest
+    if err := c.BodyParser(&req); err != nil {
+        logger.Warning("解析修改密码请求失败: %v", err)
+        return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
+    }
+
+    userID := c.Locals("userId").(string)
+
+    // 获取用户信息
+    var u user.User
+    err := config.DB.QueryRow(`
+        SELECT id, username, password_hash, is_admin, need_change_pwd 
+        FROM nlip_users WHERE id = ?
+    `, userID).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.NeedChangePwd)
+
+    if err != nil {
+        logger.Error("获取用户信息失败: %v", err)
+        return fiber.NewError(fiber.StatusInternalServerError, "获取用户信息失败")
+    }
+
+    // 验证旧密码
+    if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.OldPassword)); err != nil {
+        logger.Warning("旧密码验证失败: username=%s", u.Username)
+        return fiber.NewError(fiber.StatusUnauthorized, "旧密码错误")
+    }
+
+    // 生成新密码哈希
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+    if err != nil {
+        logger.Error("生成密码哈希失败: %v", err)
+        return fiber.NewError(fiber.StatusInternalServerError, "密码加密失败")
+    }
+
+    // 更新密码和状态
+    _, err = config.DB.Exec(`
+        UPDATE nlip_users 
+        SET password_hash = ?, need_change_pwd = FALSE 
+        WHERE id = ?
+    `, string(hashedPassword), userID)
+
+    if err != nil {
+        logger.Error("更新密码失败: %v", err)
+        return fiber.NewError(fiber.StatusInternalServerError, "更新密码失败")
+    }
+
+    logger.Info("用户 %s 成功修改密码", u.Username)
+    return c.JSON(fiber.Map{
+        "code": 200,
+        "message": "密码修改成功",
     })
 } 

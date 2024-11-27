@@ -49,7 +49,7 @@ http.interceptors.response.use(
           window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
         }
         
-        return Promise.reject(new Error('登录已过期，请重新登录'));
+        return Promise.reject(new Error(data.message || '登录已过期，请重新登录'));
       }
 
       // 处理其他错误

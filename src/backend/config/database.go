@@ -8,6 +8,7 @@ import (
     "fmt"
     "os"
     "path/filepath"
+    "golang.org/x/crypto/bcrypt"
 )
 
 var DB *sql.DB
@@ -64,6 +65,7 @@ func createTables() error {
             username VARCHAR(50) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
             is_admin BOOLEAN DEFAULT FALSE,
+            need_change_pwd BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `)
@@ -96,12 +98,14 @@ func createTables() error {
     _, err = DB.Exec(`
         CREATE TABLE IF NOT EXISTS nlip_clipboard_items (
             id VARCHAR(36) PRIMARY KEY,
+            clip_id VARCHAR(15) NOT NULL,
             space_id VARCHAR(36) NOT NULL,
             content_type VARCHAR(50) NOT NULL,
             content TEXT,
             file_path VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (space_id) REFERENCES nlip_spaces(id)
+            FOREIGN KEY (space_id) REFERENCES nlip_spaces(id),
+            UNIQUE (space_id, clip_id)
         )
     `)
     if err != nil {
@@ -131,6 +135,60 @@ func createTables() error {
             logger.Error("创建索引 %s 失败: %v", idx.name, err)
             return err
         }
+    }
+
+    // 检查是否需要创建默认公共空间
+    var count int
+    err = DB.QueryRow("SELECT COUNT(*) FROM nlip_spaces WHERE type = 'public'").Scan(&count)
+    if err != nil {
+        logger.Error("检查公共空间失败: %v", err)
+        return err
+    }
+
+    if count == 0 {
+        logger.Info("创建默认公共空间")
+        const defaultSpaceID = "public-space"
+        _, err = DB.Exec(`
+            INSERT INTO nlip_spaces (id, name, type, owner_id, max_items, retention_days) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, defaultSpaceID, "公共空间", "public", "system", 20, 7)
+        
+        if err != nil {
+            logger.Error("创建默认公共空间失败: %v", err)
+            return err
+        }
+        logger.Info("默认公共空间创建成功: id=%s", defaultSpaceID)
+    }
+
+    // 检查是否需要创建管理员账号
+    var adminCount int
+    err = DB.QueryRow("SELECT COUNT(*) FROM nlip_users WHERE is_admin = TRUE").Scan(&adminCount)
+    if err != nil {
+        logger.Error("检查管理员账号失败: %v", err)
+        return err
+    }
+
+    if adminCount == 0 {
+        logger.Info("创建默认管理员账号")
+        
+        // 生成密码哈希
+        hashedPassword, err := bcrypt.GenerateFromPassword([]byte("nlip123"), bcrypt.DefaultCost)
+        if err != nil {
+            logger.Error("生成密码哈希失败: %v", err)
+            return err
+        }
+        
+        // 插入管理员账号
+        _, err = DB.Exec(`
+            INSERT INTO nlip_users (id, username, password_hash, is_admin, need_change_pwd) 
+            VALUES (?, ?, ?, TRUE, TRUE)
+        `, "admin-user", "admin", string(hashedPassword))
+        
+        if err != nil {
+            logger.Error("创建管理员账号失败: %v", err)
+            return err
+        }
+        logger.Info("默认管理员账号创建成功")
     }
 
     logger.Info("数据库表和索引创建完成")

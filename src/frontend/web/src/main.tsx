@@ -5,10 +5,13 @@ import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { store } from './store';
 import App from './App';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // 导入样式
 import 'antd/dist/reset.css';
 import './styles/index.scss';
+
+const queryClient = new QueryClient();
 
 // 使用立即执行函数来处理异步操作
 (async () => {
@@ -19,11 +22,15 @@ import './styles/index.scss';
     const root = ReactDOM.createRoot(rootElement);
 
     root.render(
-      <Provider store={store}>
-        <ConfigProvider locale={zhCN}>
-          <App />
-        </ConfigProvider>
-      </Provider>
+      <React.StrictMode>
+        <QueryClientProvider client={queryClient}>
+          <Provider store={store}>
+            <ConfigProvider locale={zhCN}>
+              <App />
+            </ConfigProvider>
+          </Provider>
+        </QueryClientProvider>
+      </React.StrictMode>
     );
   } catch (error) {
     console.error('Application initialization failed:', error);

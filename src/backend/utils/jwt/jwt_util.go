@@ -16,18 +16,20 @@ type Claims struct {
 }
 
 type UserClaims struct {
-    UserID   string `json:"userId"`
-    Username string `json:"username"`
-    IsAdmin  bool   `json:"isAdmin"`
-    jwt.StandardClaims
+	UserID       string `json:"userId"`
+	Username     string `json:"username"`
+	IsAdmin      bool   `json:"isAdmin"`
+	NeedChangePwd bool  `json:"needChangePwd"`
+	jwt.RegisteredClaims
 }
 
 // GenerateToken 生成JWT令牌
 func GenerateToken(user *user.User) (string, error) {
-    claims := Claims{
+    claims := UserClaims{
         UserID:   user.ID,
         Username: user.Username,
         IsAdmin:  user.IsAdmin,
+        NeedChangePwd: user.NeedChangePwd,
         RegisteredClaims: jwt.RegisteredClaims{
             ExpiresAt: jwt.NewNumericDate(time.Now().Add(config.AppConfig.TokenExpiry)),
             IssuedAt:  jwt.NewNumericDate(time.Now()),

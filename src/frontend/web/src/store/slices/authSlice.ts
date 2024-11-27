@@ -6,6 +6,8 @@ interface AuthState {
   user: User | null;
   isInitialized: boolean;
   token: string | null;
+  needChangePwd: boolean;
+  loading: boolean;
 }
 
 const initialState: AuthState = {
@@ -13,6 +15,8 @@ const initialState: AuthState = {
   user: null,
   isInitialized: false,
   token: null,
+  needChangePwd: false,
+  loading: false
 };
 
 const authSlice = createSlice({
@@ -24,12 +28,16 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.isInitialized = true;
       state.token = action.payload.token;
+      state.needChangePwd = action.payload.needChangePwd;
+      state.loading = false;
     },
     clearAuth: (state) => {
       state.isAuthenticated = false;
       state.user = null;
       state.isInitialized = true;
       state.token = null;
+      state.needChangePwd = false;
+      state.loading = false;
     },
   },
 });

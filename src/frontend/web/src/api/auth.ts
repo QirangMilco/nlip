@@ -1,6 +1,5 @@
 import http from './http';
-import { LoginRequest, RegisterRequest, AuthResponse } from '@/store/types';
-import { api } from '@/config/index';
+import { LoginRequest, RegisterRequest, AuthResponse, ChangePasswordRequest, ChangePasswordResponse } from '@/store/types';
 
 export const login = async (data: LoginRequest): Promise<AuthResponse> => {
   return http.post('/auth/login', data);
@@ -43,4 +42,8 @@ export const validateTokenAndGetUser = async (token: string): Promise<AuthRespon
     }
     throw error;
   }
+}; 
+
+export const changePassword = async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
+  return http.post('/auth/change-password', data);
 }; 

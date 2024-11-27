@@ -1,17 +1,10 @@
 .textArea {
   width: 100%;
+  min-height: 120px;
   padding: 8px;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
   resize: vertical;
-  font-size: 14px;
-  line-height: 1.5;
-  
-  &:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
-  }
 }
 
 .preview {
@@ -65,6 +58,64 @@
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   margin-bottom: 24px;
+}
+
+.clipList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.clipCard {
+  height: 100%;
+  
+  :global {
+    .ant-card-body {
+      padding: 16px;
+    }
+  }
+}
+
+.clipContent {
+  min-height: 100px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  
+  .textContent {
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  
+  .imageContent {
+    img {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+    }
+  }
+  
+  .fileContent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.clipFooter {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
 }

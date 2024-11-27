@@ -1,134 +1,131 @@
-import { useCallback, useRef, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { message } from 'antd';
-import { RootState } from '@/store';
-import {
-  setSpaces,
-  setCurrentSpace,
-  addSpace,
-  updateSpace,
-  deleteSpace,
-  setLoading,
-  setError,
-} from '@/store/slices/spaceSlice';
-import * as spaceApi from '@/api/spaces';
+import { useState, useCallback, useEffect } from 'react';
+import { Space } from '@/store/slices/spaceSlice';
 import { CreateSpaceRequest, UpdateSpaceRequest } from '@/store/types';
-import { useNavigate } from 'react-router-dom';
-import { throttle } from 'lodash';
-import { useAuth } from './useAuth';
+import * as spaceApi from '@/api/spaces';
 
-export const useSpace = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { user, isInitialCheckDone } = useAuth();
-  const { spaces, currentSpace, loading, error } = useSelector(
-    (state: RootState) => state.space
-  );
-  const fetchingRef = useRef(false);
+// 重载 useSpace hook 以支持两种使用方式
+export function useSpace(): {
+  spaces: Space[];
+  loading: boolean;
+  error: Error | null;
+  fetchSpaces: () => Promise<void>;
+  createSpace: (data: CreateSpaceRequest) => Promise<Space>;
+  updateSpaceById: (id: string, data: UpdateSpaceRequest) => Promise<Space>;
+  deleteSpaceById: (id: string) => Promise<void>;
+};
+export function useSpace(spaceId: string): {
+  space: Space | null;
+  isLoading: boolean;
+  error: Error | null;
+  fetchSpace: () => Promise<void>;
+};
+export function useSpace(spaceId?: string) {
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [space, setSpace] = useState<Space | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  // 获取单个空间
+  const fetchSpace = useCallback(async () => {
+    if (!spaceId) return;
+    try {
+      setLoading(true);
+      const data = await spaceApi.getSpace(spaceId);
+      setSpace(data);
+      setError(null);
+    } catch (err) {
+      setError(err as Error);
+      setSpace(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [spaceId]);
 
   // 获取空间列表
   const fetchSpaces = useCallback(async () => {
-    // 如果未完成初始认证检查或正在获取数据，则跳过
-    if (!isInitialCheckDone || !user || fetchingRef.current) {
-      return;
-    }
-
     try {
-      fetchingRef.current = true;
-      dispatch(setLoading(true));
-      const spaces = await spaceApi.listSpaces();
-      dispatch(setSpaces(spaces || []));
-    } catch (error: any) {
-      if (error.status === 401) {
-        navigate('/login');
-      }
-      dispatch(setError(error.message));
-      message.error(error.message);
+      setLoading(true);
+      const data = await spaceApi.listSpaces();
+      setSpaces(data);
+      setError(null);
+    } catch (err) {
+      setError(err as Error);
     } finally {
-      dispatch(setLoading(false));
-      fetchingRef.current = false;
+      setLoading(false);
     }
-  }, [dispatch, navigate, isInitialCheckDone, user]);
+  }, []);
 
-  // 在组件挂载和认证状态变化时获取数据
+  // 根据是否传入 spaceId 决定获取单个空间还是空间列表
   useEffect(() => {
-    if (isInitialCheckDone && user) {
+    if (spaceId) {
+      fetchSpace();
+    } else {
       fetchSpaces();
     }
-  }, [fetchSpaces, isInitialCheckDone, user]);
+  }, [spaceId, fetchSpace, fetchSpaces]);
 
-  // 创建空间
   const createSpace = useCallback(async (data: CreateSpaceRequest) => {
     try {
-      dispatch(setLoading(true));
+      setLoading(true);
       const newSpace = await spaceApi.createSpace(data);
-      dispatch(addSpace(newSpace));
-      message.success('创建空间成功');
+      setSpaces(prev => [...prev, newSpace]);
+      setError(null);
       return newSpace;
-    } catch (error: any) {
-      dispatch(setError(error.message));
-      message.error(error.message);
-      throw error;
+    } catch (err) {
+      setError(err as Error);
+      throw err;
     } finally {
-      dispatch(setLoading(false));
+      setLoading(false);
     }
-  }, [dispatch]);
+  }, []);
 
-  // 更新空间 - 使用 throttle 代替 debounce
-  const throttledUpdateSpace = useCallback(
-    throttle(async (id: string, data: UpdateSpaceRequest) => {
-      try {
-        dispatch(setLoading(true));
-        const updatedSpace = await spaceApi.updateSpace(id, data);
-        dispatch(updateSpace(updatedSpace));
-        message.success('更新空间成功');
-        return updatedSpace;
-      } catch (error: any) {
-        dispatch(setError(error.message));
-        message.error(error.message);
-        throw error;
-      } finally {
-        dispatch(setLoading(false));
-      }
-    }, 1000), // 1秒内最多执行一次
-    [dispatch]
-  );
+  const updateSpaceById = useCallback(async (id: string, data: UpdateSpaceRequest) => {
+    try {
+      setLoading(true);
+      const updatedSpace = await spaceApi.updateSpace(id, data);
+      setSpaces(prev => prev.map(space => 
+        space.id === id ? updatedSpace : space
+      ));
+      setError(null);
+      return updatedSpace;
+    } catch (err) {
+      setError(err as Error);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // 删除空间
   const deleteSpaceById = useCallback(async (id: string) => {
     try {
-      dispatch(setLoading(true));
+      setLoading(true);
       await spaceApi.deleteSpace(id);
-      dispatch(deleteSpace(id));
-      message.success('删除空间成功');
-    } catch (error: any) {
-      dispatch(setError(error.message));
-      message.error(error.message);
-      throw error;
+      setSpaces(prev => prev.filter(space => space.id !== id));
+      setError(null);
+    } catch (err) {
+      setError(err as Error);
+      throw err;
     } finally {
-      dispatch(setLoading(false));
+      setLoading(false);
     }
-  }, [dispatch]);
+  }, []);
 
-  // 设置当前空间 - 使用 throttle
-  const throttledSelectSpace = useCallback(
-    throttle((space: any) => {
-      dispatch(setCurrentSpace(space));
-    }, 500), // 500ms 内最多执行一次
-    [dispatch]
-  );
+  if (spaceId) {
+    return {
+      space,
+      isLoading: loading,
+      error,
+      fetchSpace
+    };
+  }
 
   return {
     spaces,
-    currentSpace,
     loading,
     error,
     fetchSpaces,
     createSpace,
-    updateSpaceById: throttledUpdateSpace,
-    deleteSpaceById,
-    selectSpace: throttledSelectSpace,
+    updateSpaceById,
+    deleteSpaceById
   };
-};
-
-export default useSpace; 
+} 

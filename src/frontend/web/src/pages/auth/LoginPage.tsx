@@ -1,36 +1,40 @@
 import React from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setAuth } from '@/store/slices/authSlice';
 import { login } from '@/api/auth';
-import { setStoredToken } from '@/utils/storage';
 import styles from './AuthPage.module.scss';
 
-interface LoginFormData {
-  username: string;
-  password: string;
-}
 
 const LoginPage: React.FC = () => {
-  const [form] = Form.useForm();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [loading, setLoading] = React.useState(false);
+  const location = useLocation();
+  // const [searchParams] = useSearchParams();
+  // const redirect = searchParams.get('redirect') || '/clips';
 
-  const handleSubmit = async (values: LoginFormData) => {
+  const onFinish = async (values: { username: string; password: string }) => {
     try {
-      setLoading(true);
       const response = await login(values);
-      setStoredToken(response.token);
-      dispatch(setAuth(response));
-      message.success('登录成功');
-      navigate('/');
+      dispatch(setAuth({
+        token: response.token,
+        user: response.user,
+        needChangePwd: response.needChangePwd
+      }));
+      
+      // 检查是否需要修改密码
+      if (response.needChangePwd) {
+        navigate('/change-password');
+      } else {
+        // 获取重定向地址
+        const params = new URLSearchParams(location.search);
+        const redirect = params.get('redirect') || '/clips';
+        navigate(redirect);
+      }
     } catch (error: any) {
       message.error(error.message || '登录失败');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -38,8 +42,7 @@ const LoginPage: React.FC = () => {
     <div className={styles.container}>
       <Card title="登录" className={styles.card}>
         <Form
-          form={form}
-          onFinish={handleSubmit}
+          onFinish={onFinish}
           autoComplete="off"
           layout="vertical"
         >
@@ -79,7 +82,6 @@ const LoginPage: React.FC = () => {
               htmlType="submit"
               size="large"
               block
-              loading={loading}
             >
               登录
             </Button>
