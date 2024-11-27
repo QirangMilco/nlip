@@ -2,7 +2,7 @@
 
 [English](./README.md) | 简体中文
 
-一个支持跨平台文本和文件共享的轻量级网络剪贴板系统。
+一个**由Cursor实现的**支持跨平台文本和文件共享的轻量级网络剪贴板系统。
 
 <p align="center">
   <img src="docs/images/logo.png" alt="Nlip Logo" width="200"/>

@@ -17,13 +17,12 @@ const MainLayout: React.FC = memo(() => {
   const [isTimeout, setIsTimeout] = React.useState(false);
 
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isInitialCheckDone) {
+    if (!isInitialCheckDone) {
+      const timer = setTimeout(() => {
         setIsTimeout(true);
-      }
-    }, 3000);
-
-    return () => clearTimeout(timer);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
   }, [isInitialCheckDone]);
 
   const userMenu: MenuProps['items'] = [

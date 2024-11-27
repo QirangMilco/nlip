@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
@@ -12,7 +12,7 @@ export const useAuth = () => {
   const dispatch = useDispatch();
   const { token, user } = useSelector((state: RootState) => state.auth);
   const validatingRef = useRef(false);
-  const initialCheckDoneRef = useRef(false);
+  const [isInitialCheckDone, setIsInitialCheckDone] = useState(false);
 
   const validateAuth = useCallback(async () => {
     // 如果正在验证中，则跳过
@@ -22,14 +22,14 @@ export const useAuth = () => {
 
     // 如果在登录页面，直接标记为已完成
     if (location.pathname.includes('/login')) {
-      initialCheckDoneRef.current = true;
+      setIsInitialCheckDone(true);
       return;
     }
 
     try {
       // 如果没有 token，重定向到登录页
       if (!token) {
-        initialCheckDoneRef.current = true;
+        setIsInitialCheckDone(true);
         if (!location.pathname.includes('/login')) {
           navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
         }
@@ -43,8 +43,7 @@ export const useAuth = () => {
         dispatch(setAuth({ token, user: userData.user }));
       }
       
-      // 验证成功，标记完成
-      initialCheckDoneRef.current = true;
+      setIsInitialCheckDone(true);
     } catch (error) {
       // 验证失败，清除认证信息
       localStorage.removeItem('token');
@@ -54,7 +53,7 @@ export const useAuth = () => {
       }
     } finally {
       validatingRef.current = false;
-      initialCheckDoneRef.current = true;
+      setIsInitialCheckDone(true);
     }
   }, [token, user, dispatch, navigate, location]);
 
@@ -68,9 +67,8 @@ export const useAuth = () => {
       dispatch(setAuth({ token: response.token, user: response.user }));
       // 获取重定向地址
       const params = new URLSearchParams(location.search);
-      const redirect = params.get('redirect') || '/';
-      // 立即标记初始检查完成
-      initialCheckDoneRef.current = true;
+      const redirect = params.get('redirect') || '/clips';
+      setIsInitialCheckDone(true);
       validatingRef.current = false;
       // 导航到目标页面
       navigate(redirect);
@@ -82,7 +80,7 @@ export const useAuth = () => {
   const logout = () => {
     localStorage.removeItem('token');
     dispatch(clearAuth());
-    initialCheckDoneRef.current = false;
+    setIsInitialCheckDone(false);
     validatingRef.current = false;
     navigate('/login');
   };
@@ -101,7 +99,7 @@ export const useAuth = () => {
     token,
     login,
     logout,
-    isInitialCheckDone: initialCheckDoneRef.current
+    isInitialCheckDone
   };
 };
 
