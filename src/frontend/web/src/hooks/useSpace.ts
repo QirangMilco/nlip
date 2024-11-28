@@ -3,43 +3,11 @@ import { Space } from '@/store/slices/spaceSlice';
 import { CreateSpaceRequest, UpdateSpaceRequest } from '@/store/types';
 import * as spaceApi from '@/api/spaces';
 
-// 重载 useSpace hook 以支持两种使用方式
-export function useSpace(): {
-  spaces: Space[];
-  loading: boolean;
-  error: Error | null;
-  fetchSpaces: () => Promise<void>;
-  createSpace: (data: CreateSpaceRequest) => Promise<Space>;
-  updateSpaceById: (id: string, data: UpdateSpaceRequest) => Promise<Space>;
-  deleteSpaceById: (id: string) => Promise<void>;
-};
-export function useSpace(spaceId: string): {
-  space: Space | null;
-  isLoading: boolean;
-  error: Error | null;
-  fetchSpace: () => Promise<void>;
-};
-export function useSpace(spaceId?: string) {
+// 移除重载定义，只保留一个返回类型
+export function useSpace() {
   const [spaces, setSpaces] = useState<Space[]>([]);
-  const [space, setSpace] = useState<Space | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-
-  // 获取单个空间
-  const fetchSpace = useCallback(async () => {
-    if (!spaceId) return;
-    try {
-      setLoading(true);
-      const data = await spaceApi.getSpace(spaceId);
-      setSpace(data);
-      setError(null);
-    } catch (err) {
-      setError(err as Error);
-      setSpace(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [spaceId]);
 
   // 获取空间列表
   const fetchSpaces = useCallback(async () => {
@@ -55,14 +23,10 @@ export function useSpace(spaceId?: string) {
     }
   }, []);
 
-  // 根据是否传入 spaceId 决定获取单个空间还是空间列表
+  // 初始化时获取空间列表
   useEffect(() => {
-    if (spaceId) {
-      fetchSpace();
-    } else {
-      fetchSpaces();
-    }
-  }, [spaceId, fetchSpace, fetchSpaces]);
+    fetchSpaces();
+  }, [fetchSpaces]);
 
   const createSpace = useCallback(async (data: CreateSpaceRequest) => {
     try {
@@ -109,15 +73,6 @@ export function useSpace(spaceId?: string) {
       setLoading(false);
     }
   }, []);
-
-  if (spaceId) {
-    return {
-      space,
-      isLoading: loading,
-      error,
-      fetchSpace
-    };
-  }
 
   return {
     spaces,

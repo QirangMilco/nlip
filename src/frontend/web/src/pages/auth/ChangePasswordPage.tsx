@@ -3,7 +3,7 @@ import { Form, Input, Button, Card, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { changePassword } from '@/api/auth';
-import { setAuth } from '@/store/slices/authSlice';
+import { clearAuth } from '@/store/slices/authSlice';
 import styles from './ChangePasswordPage.module.scss';
 
 interface ChangePasswordForm {
@@ -21,12 +21,22 @@ const ChangePasswordPage: React.FC = () => {
   const handleSubmit = async (values: ChangePasswordForm) => {
     try {
       setLoading(true);
-      const response = await changePassword({
+      // const response = await changePassword({
+      await changePassword({
         oldPassword: values.oldPassword,
         newPassword: values.newPassword
       });
-      message.success(response.message);
-      navigate('/clips');
+      
+      message.success('密码修改成功，请重新登录');
+      
+      // 清除登录状态
+      dispatch(clearAuth());
+      
+      // 延迟跳转到登录页面，让用户能看到成功提示
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 1000);
+      
     } catch (error: any) {
       message.error(error.message || '修改密码失败');
     } finally {

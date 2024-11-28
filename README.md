@@ -36,14 +36,16 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
 ### Core Features
 - Multi-platform support (Web, Browser Extension, Mobile App)
 - Text and file sharing
-- Space-based content organization
+- Space-based content organization and management
 - Real-time synchronization
+- Space permission management
 
 ### Security Features
 - User authentication and authorization
 - Rate limiting
 - File type filtering
 - Content expiration management
+- Space-level access control
 
 ### Additional Features
 - Responsive design
@@ -69,6 +71,41 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
 - State Management: Redux Toolkit
 - HTTP Client: Axios
 - Build Tool: Vite
+
+## API Documentation
+
+For detailed API documentation, see [API Documentation](docs/api/api.md)
+
+### API Features
+- RESTful API design
+- JWT authentication
+- Real-time WebSocket notifications
+- Rate limiting
+- Detailed error handling
+- Version control
+- Debug mode support
+
+### API Example
+
+```typescript
+// Login example
+const response = await fetch('/api/v1/nlip/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    username: 'test',
+    password: '123456'
+  })
+});
+
+const data = await response.json();
+// Use the returned token
+const token = data.token;
+```
+
+For more examples, please refer to [API Documentation](docs/api/api.md)
 
 ## Getting Started
 

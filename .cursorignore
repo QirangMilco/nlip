@@ -1,0 +1,56 @@
+# 依赖目录
+node_modules/
+vendor/
+dist/
+build/
+
+# 编译输出
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE 和编辑器文件
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 日志文件
+# *.log
+# logs/
+# log/
+
+# 环境配置文件
+# .env
+# .env.*
+# !.env.example
+
+# 测试覆盖率报告
+coverage/
+
+# 临时文件
+tmp/
+temp/
+
+# 数据库文件
+*.db
+*.sqlite
+
+# 二进制文件
+bin/
+
+# Go 特定
+go.sum
+
+# 前端构建缓存
+.cache/
+.next/
+.nuxt/
+.vuepress/dist
+
+# 其他
+*.bak
+*.backup
+*.old 

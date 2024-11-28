@@ -15,7 +15,15 @@ const AppRoutes: React.FC = () => {
       
       {/* 需要认证的路由 */}
       <Route
-        path="/clips/*"
+        path="/clips"
+        element={
+          <PrivateRoute>
+            <ClipsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/clips/:spaceId"
         element={
           <PrivateRoute>
             <ClipsPage />

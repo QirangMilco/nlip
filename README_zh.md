@@ -36,14 +36,16 @@
 ### 核心功能
 - 多平台支持（Web、浏览器插件、移动应用）
 - 文本和文件共享
-- 基于空间的内容组织
+- 基于空间的内容组织和管理
 - 实时同步
+- 空间权限管理
 
 ### 安全特性
 - 用户认证和授权
 - 访问频率限制
 - 文件类型过滤
 - 内容过期管理
+- 空间级别的访问控制
 
 ### 其他特性
 - 响应式设计
@@ -69,6 +71,41 @@
 - 状态管理：Redux Toolkit
 - HTTP 客户端：Axios
 - 构建工具：Vite
+
+### API 文档
+
+详细的 API 文档请查看 [API文档](docs/api/api.md)
+
+#### API 特性
+- RESTful API 设计
+- JWT 认证
+- 实时WebSocket通知
+- 请求频率限制
+- 详细的错误处理
+- 版本控制
+- 支持调试模式
+
+#### API 示例
+
+```typescript
+// 登录示例
+const response = await fetch('/api/v1/nlip/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    username: 'test',
+    password: '123456'
+  })
+});
+
+const data = await response.json();
+// 使用返回的token
+const token = data.token;
+```
+
+更多示例请参考 [API文档](docs/api/api.md)
 
 ## 快速开始
 

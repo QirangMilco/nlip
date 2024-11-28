@@ -43,23 +43,26 @@ export interface Space {
   maxItems: number;
   retentionDays: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 // 剪贴板相关类型
 export interface Clip {
   id: string;
+  clipId: string;
   spaceId: string;
   contentType: string;
   content?: string;
   filePath?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface UploadClipRequest {
-  spaceId: string;
-  contentType: string;
-  content?: string;
   file?: File;
+  content?: string;
+  contentType: string;
+  spaceId: string;
 }
 
 export interface ClipResponse {
@@ -72,10 +75,13 @@ export interface ListClipsResponse {
 
 export interface CreateSpaceRequest {
   name: string;
-  description?: string;
+  type: 'private' | 'public';
+  maxItems: number;
+  retentionDays: number;
 }
 
 export interface UpdateSpaceRequest {
   name?: string;
-  description?: string;
+  maxItems?: number;
+  retentionDays?: number;
 } 

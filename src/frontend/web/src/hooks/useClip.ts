@@ -1,61 +1,72 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
+import { useState, useCallback } from 'react';
+import { Clip, UploadClipRequest, ClipResponse } from '@/store/types';
 import * as clipApi from '@/api/clips';
-import { Clip, UploadClipRequest } from '@/store/types';
+import { useQuery } from '@tanstack/react-query';
 
 export const useClips = (spaceId: string) => {
-  const queryClient = useQueryClient();
+  const [clips, setClips] = useState<Clip[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-  // 获取剪贴板列表
-  const { data: clips = [], isLoading, error } = useQuery<Clip[]>({
-    queryKey: ['clips', spaceId],
-    queryFn: () => clipApi.getClips(spaceId),
-    enabled: !!spaceId,
-  });
+  const fetchClips = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const clips = await clipApi.getClips(spaceId);
+      setClips(clips);
+      setError(null);
+    } catch (err) {
+      setError(err as Error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [spaceId]);
 
-  // 上传剪贴板内容
-  const { mutateAsync: uploadClip, isPending: isUploading } = useMutation({
-    mutationFn: (data: UploadClipRequest) => clipApi.uploadClip(spaceId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clips', spaceId] });
-      message.success('上传成功');
-    },
-    onError: (error: Error) => {
-      message.error(error.message || '上传失败');
-    },
-  });
+  const uploadClip = useCallback(async (data: UploadClipRequest) => {
+    try {
+      // 创建 FormData 对象
+      const formData = new FormData();
+      if (data.file) {
+        formData.append('file', data.file);
+      }
+      if (data.content) {
+        formData.append('content', data.content);
+      }
+      formData.append('contentType', data.contentType);
+      formData.append('spaceId', data.spaceId);
 
-  // 删除剪贴板内容
-  const { mutateAsync: deleteClip, isPending: isDeleting } = useMutation({
-    mutationFn: (clipId: string) => clipApi.deleteClip(spaceId, clipId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clips', spaceId] });
-      message.success('删除成功');
-    },
-    onError: (error: Error) => {
-      message.error(error.message || '删除失败');
-    },
-  });
+      const response = await clipApi.uploadClip(formData);
+      setClips(prev => [response, ...prev]);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }, []);
 
-  // 下载剪贴板内容
-  const { mutateAsync: downloadClip, isPending: isDownloading } = useMutation({
-    mutationFn: (clipId: string) => clipApi.downloadClip(spaceId, clipId),
-    onError: (error: Error) => {
-      message.error(error.message || '下载失败');
-    },
-  });
+  const deleteClip = useCallback(async (clipId: string) => {
+    try {
+      await clipApi.deleteClip(spaceId, clipId);
+      setClips(prev => prev.filter(clip => clip.id !== clipId));
+    } catch (err) {
+      throw err;
+    }
+  }, [spaceId]);
+
+  const downloadClip = useCallback(async (spaceId: string, clipId: string) => {
+    try {
+      return await clipApi.downloadClip(spaceId, clipId);
+    } catch (err) {
+      throw err;
+    }
+  }, []);
 
   return {
     clips,
     isLoading,
     error,
     uploadClip,
-    isUploading,
     deleteClip,
-    isDeleting,
     downloadClip,
-    isDownloading,
+    fetchClips
   };
 };
 
@@ -63,7 +74,9 @@ export const useClips = (spaceId: string) => {
 export const useClip = (spaceId: string, clipId: string) => {
   const { data: clip, isLoading, error } = useQuery({
     queryKey: ['clip', spaceId, clipId],
-    queryFn: () => clipApi.getClip(spaceId, clipId),
+    queryFn: () => clipApi.getClips(spaceId).then(clips => 
+      clips.find(c => c.id === clipId)
+    ),
     enabled: !!spaceId && !!clipId,
   });
 

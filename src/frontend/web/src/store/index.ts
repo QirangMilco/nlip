@@ -2,6 +2,8 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import spaceReducer from './slices/spaceSlice';
 import clipReducer from './slices/clipSlice';
+import { Action } from '@reduxjs/toolkit';
+import { ThunkAction } from 'redux-thunk';
 
 export const store = configureStore({
   reducer: {
