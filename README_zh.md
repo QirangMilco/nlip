@@ -68,13 +68,13 @@
 - Web：React 18 + TypeScript 5 + Ant Design 5
 - 浏览器插件：Chrome Extension API + React
 - 移动应用：Flutter 3
-- 状态管理：Redux Toolkit
+- 状态管理：Redux Toolkit + Redux Persist
 - HTTP 客户端：Axios
 - 构建工具：Vite
 
 ### API 文档
 
-详细的 API 文档请查看 [API文档](docs/api/api.md)
+详细的 API 文档请查看 [API文档](docs/api/api_zh.md)
 
 #### API 特性
 - RESTful API 设计
@@ -105,7 +105,7 @@ const data = await response.json();
 const token = data.token;
 ```
 
-更多示例请参考 [API文档](docs/api/api.md)
+更多示例请参考 [API文档](docs/api/api_zh.md)
 
 ## 快速开始
 

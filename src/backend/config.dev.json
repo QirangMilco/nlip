@@ -1,3 +1,11 @@
 {
-    "jwt_secret": "your-super-secret-key-at-least-32-chars"
+    "jwt_secret": "your-super-secret-key-at-least-32-chars",
+    "file_types": {
+        "allow_list": [
+            "txt", "md", "json", "jpg", "png", "pdf"
+        ],
+        "deny_list": [
+            "exe", "dll", "sh", "bat"
+        ]
+    }
 } 

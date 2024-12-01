@@ -27,7 +27,17 @@ export const deleteClip = async (spaceId: string, clipId: string): Promise<void>
 export const downloadClip = async (spaceId: string, clipId: string): Promise<Blob> => {
   const response = await http.get(`/spaces/${spaceId}/clips/${clipId}`, {
     params: { download: true },
-    responseType: 'blob'
+    responseType: 'blob',
+    headers: {
+      'Accept': '*/*'
+    }
   });
+  
   return response.data;
+};
+
+// 更新剪贴板内容
+export const updateClip = async (spaceId: string, clipId: string, content: string): Promise<Clip> => {
+  const response = await http.put(`/spaces/${spaceId}/clips/${clipId}`, { content });
+  return response.data.clip;
 };

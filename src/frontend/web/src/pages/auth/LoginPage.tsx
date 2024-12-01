@@ -1,38 +1,17 @@
 import React from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { setAuth } from '@/store/slices/authSlice';
-import { login } from '@/api/auth';
+import { Link} from 'react-router-dom';
 import styles from './AuthPage.module.scss';
+import { useAuth } from '@/hooks/useAuth';
 
 
 const LoginPage: React.FC = () => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const location = useLocation();
-  // const [searchParams] = useSearchParams();
-  // const redirect = searchParams.get('redirect') || '/clips';
+  const { login } = useAuth();
 
   const onFinish = async (values: { username: string; password: string }) => {
     try {
-      const response = await login(values);
-      dispatch(setAuth({
-        token: response.token,
-        user: response.user,
-        needChangePwd: response.needChangePwd
-      }));
-      
-      // 检查是否需要修改密码
-      if (response.needChangePwd) {
-        navigate('/change-password');
-      } else {
-        // 获取重定向地址
-        const params = new URLSearchParams(location.search);
-        const redirect = params.get('redirect') || '/clips';
-        navigate(redirect);
-      }
+      await login(values);
     } catch (error: any) {
       message.error(error.message || '登录失败');
     }

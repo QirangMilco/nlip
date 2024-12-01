@@ -68,7 +68,7 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
 - Web: React 18 + TypeScript 5 + Ant Design 5
 - Browser Extension: Chrome Extension API + React
 - Mobile App: Flutter 3
-- State Management: Redux Toolkit
+- State Management: Redux Toolkit + Redux Persist
 - HTTP Client: Axios
 - Build Tool: Vite
 

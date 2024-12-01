@@ -1,40 +1,81 @@
 import http from './http';
 import { LoginRequest, RegisterRequest, AuthResponse, ChangePasswordRequest, ChangePasswordResponse } from '@/store/types';
+import { store } from '@/store';
+import { setAuth } from '@/store/slices/authSlice';
 
 export const login = async (data: LoginRequest): Promise<AuthResponse> => {
-  return http.post('/auth/login', data);
+  const response = await http.post<AuthResponse>('/auth/login', data);
+  if (!response.data.user) {
+    throw new Error('User data is required');
+  }
+  store.dispatch(setAuth({
+    token: response.data.token,
+    user: response.data.user,
+    needChangePwd: response.data.needChangePwd
+  }));
+  
+  return response.data;
 };
 
 export const register = async (data: RegisterRequest): Promise<AuthResponse> => {
-  return http.post('/auth/register', data);
+  const response = await http.post('/auth/register', data);
+  return response.data;
 };
 
 export const checkToken = async (): Promise<AuthResponse> => {
-  return http.get('/auth/check');
+  const response = await http.get<AuthResponse>('/auth/check');
+  if (!response.data.user) {
+    throw new Error('User data is required');
+  }
+  store.dispatch(setAuth({
+    token: response.data.token,
+    user: response.data.user,
+    needChangePwd: response.data.needChangePwd
+  }));
+  return response.data;
 };
 
 export const refreshToken = async (): Promise<AuthResponse> => {
   try {
     const response = await http.post('/auth/refresh');
+    if (!response.data.user) {
+      throw new Error('User data is required');
+    }
+    store.dispatch(setAuth({
+      token: response.data.token,
+      user: response.data.user,
+      needChangePwd: response.data.needChangePwd
+    }));
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-export const validateTokenAndGetUser = async (token: string): Promise<AuthResponse> => {
+export const validateTokenAndGetUser = async (): Promise<AuthResponse> => {
   try {
-    const response = await http.get('/auth/me', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await http.get<AuthResponse>('/auth/me');
+    if (!response.data.user) {
+      throw new Error('User data is required');
+    }
+    store.dispatch(setAuth({
+      token: response.data.token,
+      user: response.data.user,
+      needChangePwd: response.data.needChangePwd
+    }));
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 401) {
       try {
-        const newToken = await refreshToken();
-        const retryResponse = await http.get('/auth/me', {
-          headers: { Authorization: `Bearer ${newToken.token}` }
-        });
+        const retryResponse = await http.get<AuthResponse>('/auth/me');
+        if (!retryResponse.data.user) {
+          throw new Error('User data is required');
+        }
+        store.dispatch(setAuth({
+          token: retryResponse.data.token,
+          user: retryResponse.data.user,
+          needChangePwd: retryResponse.data.needChangePwd
+        }));
         return retryResponse.data;
       } catch (refreshError) {
         throw refreshError;
@@ -42,8 +83,9 @@ export const validateTokenAndGetUser = async (token: string): Promise<AuthRespon
     }
     throw error;
   }
-}; 
+};
 
 export const changePassword = async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
-  return http.post('/auth/change-password', data);
-}; 
+  const response = await http.post('/auth/change-password', data);
+  return response.data;
+};

@@ -8,6 +8,7 @@ export interface Space {
   maxItems: number;
   retentionDays: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 interface SpaceState {

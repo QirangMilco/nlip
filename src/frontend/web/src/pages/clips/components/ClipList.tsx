@@ -1,8 +1,11 @@
 import React from 'react';
-import { List, Space } from 'antd';
+import { List, Space, Typography } from 'antd';
 import { Clip } from '@/store/types';
 import IconButton from '@/components/common/IconButton';
 import { DeleteOutlined, DownloadOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+
+const { Text } = Typography;
 
 interface ClipListProps {
   clips: Clip[];
@@ -32,8 +35,15 @@ const ClipList: React.FC<ClipListProps> = ({ clips, onDelete, onDownload }) => {
           ]}
         >
           <List.Item.Meta
-            title={clip.title}
-            description={clip.contentType}
+            title={
+              <Space>
+                <Text>{clip.contentType}</Text>
+                <Text type="secondary">
+                  {dayjs(clip.createdAt).format('YYYY-MM-DD HH:mm')}
+                </Text>
+              </Space>
+            }
+            description={clip.content}
           />
         </List.Item>
       )}

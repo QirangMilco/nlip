@@ -4,7 +4,7 @@ import { Space } from '@/store/slices/spaceSlice';
 
 export const listSpaces = async (): Promise<Space[]> => {
   const response = await http.get('/spaces/list');
-  return response.data["spaces"];
+  return response.data.spaces;
 };
 
 export const createSpace = async (data: CreateSpaceRequest): Promise<Space> => {

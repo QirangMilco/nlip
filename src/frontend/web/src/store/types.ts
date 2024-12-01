@@ -54,13 +54,17 @@ export interface Clip {
   contentType: string;
   content?: string;
   filePath?: string;
+  creator?: {
+    id: string;
+    username: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
 
 export interface UploadClipRequest {
-  file?: File;
   content?: string;
+  file?: File;
   contentType: string;
   spaceId: string;
 }
@@ -84,4 +88,8 @@ export interface UpdateSpaceRequest {
   name?: string;
   maxItems?: number;
   retentionDays?: number;
+}
+
+export interface UpdateClipRequest {
+  content: string;
 } 

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Clip, UploadClipRequest, ClipResponse } from '@/store/types';
+import { Clip, UploadClipRequest} from '@/store/types';
 import * as clipApi from '@/api/clips';
 import { useQuery } from '@tanstack/react-query';
 
@@ -35,7 +35,7 @@ export const useClips = (spaceId: string) => {
       formData.append('spaceId', data.spaceId);
 
       const response = await clipApi.uploadClip(formData);
-      setClips(prev => [response, ...prev]);
+      setClips(prev => Array.isArray(prev) ? [response, ...prev] : [response]);
       return response;
     } catch (err) {
       throw err;
@@ -45,16 +45,17 @@ export const useClips = (spaceId: string) => {
   const deleteClip = useCallback(async (clipId: string) => {
     try {
       await clipApi.deleteClip(spaceId, clipId);
-      setClips(prev => prev.filter(clip => clip.id !== clipId));
+      setClips(prev => Array.isArray(prev) ? prev.filter(clip => clip.id !== clipId) : []);
     } catch (err) {
       throw err;
     }
   }, [spaceId]);
 
-  const downloadClip = useCallback(async (spaceId: string, clipId: string) => {
+  const downloadClip = useCallback(async (spaceId: string, clipId: string): Promise<Blob> => {
     try {
       return await clipApi.downloadClip(spaceId, clipId);
     } catch (err) {
+      console.error('下载文件失败:', err);
       throw err;
     }
   }, []);

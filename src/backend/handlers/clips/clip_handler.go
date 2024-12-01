@@ -9,10 +9,115 @@ import (
 	"nlip/utils/logger"
 	"nlip/utils/storage"
 	"nlip/utils/validator"
+	"nlip/utils/db"
 	"path/filepath"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+// 添加通用的查询语句常量
+const (
+    selectClipWithCreatorSQL = `
+        SELECT 
+            c.id, 
+            c.clip_id, 
+            c.space_id, 
+            c.content_type, 
+            c.content, 
+            c.file_path, 
+            c.created_at,
+            c.updated_at,
+            u.id as creator_id,
+            u.username as creator_username
+        FROM nlip_clipboard_items c
+        LEFT JOIN nlip_users u ON c.creator_id = u.id
+    `
+
+    selectClipWithSpaceAndCreatorSQL = `
+        SELECT 
+            c.id, 
+            c.clip_id, 
+            c.space_id, 
+            c.content_type, 
+            c.content, 
+            c.file_path, 
+            c.created_at,
+            c.updated_at,
+            s.owner_id as space_owner_id,
+            u.id as creator_id,
+            u.username as creator_username
+        FROM nlip_clipboard_items c
+        JOIN nlip_spaces s ON c.space_id = s.id
+        LEFT JOIN nlip_users u ON c.creator_id = u.id
+    `
+)
+
+// scanClip 辅助函数：扫描剪贴板数据
+func scanClip(rows *sql.Rows) (*clip.Clip, error) {
+    var cl clip.Clip
+    var creatorID, creatorUsername sql.NullString
+    
+    err := rows.Scan(
+        &cl.ID,
+        &cl.ClipID,
+        &cl.SpaceID,
+        &cl.ContentType,
+        &cl.Content,
+        &cl.FilePath,
+        &cl.CreatedAt,
+        &cl.UpdatedAt,
+        &creatorID,
+        &creatorUsername,
+    )
+    
+    if err != nil {
+        return nil, err
+    }
+
+    if creatorID.Valid && creatorUsername.Valid {
+        cl.Creator = &clip.Creator{
+            ID:       creatorID.String,
+            Username: creatorUsername.String,
+        }
+    }
+
+    return &cl, nil
+}
+
+// scanClipWithSpaceOwner 辅助函数：扫描带空间所有者信息的剪贴板数据
+func scanClipWithSpaceOwner(row *sql.Row) (*clip.Clip, string, error) {
+    var cl clip.Clip
+    var spaceOwnerID string
+    var creatorID, creatorUsername sql.NullString
+    
+    err := row.Scan(
+        &cl.ID,
+        &cl.ClipID,
+        &cl.SpaceID,
+        &cl.ContentType,
+        &cl.Content,
+        &cl.FilePath,
+        &cl.CreatedAt,
+        &cl.UpdatedAt,
+        &spaceOwnerID,
+        &creatorID,
+        &creatorUsername,
+    )
+    
+    if err != nil {
+        return nil, "", err
+    }
+
+    if creatorID.Valid && creatorUsername.Valid {
+        cl.Creator = &clip.Creator{
+            ID:       creatorID.String,
+            Username: creatorUsername.String,
+        }
+    }
+
+    return &cl, spaceOwnerID, nil
+}
 
 // HandleUploadClip 处理上传剪贴板内容
 func HandleUploadClip(c *fiber.Ctx) error {
@@ -99,6 +204,12 @@ func HandleUploadClip(c *fiber.Ctx) error {
 		SpaceID:     req.SpaceID,
 		ContentType: req.ContentType,
 		Content:     req.Content,
+		Creator: &clip.Creator{
+			ID:       userID,
+			Username: c.Locals("username").(string),
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	// 如果有文件，保存到存储
@@ -115,9 +226,10 @@ func HandleUploadClip(c *fiber.Ctx) error {
 
 	// 插入数据库
 	_, err = config.DB.Exec(`
-        INSERT INTO nlip_clipboard_items (id, clip_id, space_id, content_type, content, file_path) 
-        VALUES (?, ?, ?, ?, ?, ?)
-    `, cl.ID, cl.ClipID, cl.SpaceID, cl.ContentType, cl.Content, cl.FilePath)
+        INSERT INTO nlip_clipboard_items 
+        (id, clip_id, space_id, content_type, content, file_path, creator_id, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, cl.ID, cl.ClipID, cl.SpaceID, cl.ContentType, cl.Content, cl.FilePath, userID, cl.CreatedAt, cl.UpdatedAt)
 
 	if err != nil {
 		// 如果数据库插入失败，删除已上传的文件
@@ -131,8 +243,12 @@ func HandleUploadClip(c *fiber.Ctx) error {
 	}
 
 	logger.Info("用户 %s 成功上传内容到空间 %s", userID, req.SpaceID)
-	return c.Status(fiber.StatusCreated).JSON(clip.ClipResponse{
-		Clip: &cl,
+	return c.JSON(fiber.Map{
+		"code": fiber.StatusOK,
+		"message": "上传成功",
+		"data": clip.ClipResponse{
+			Clip: &cl,
+		},
 	})
 }
 
@@ -159,31 +275,35 @@ func HandleListClips(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusForbidden, "没有权限访问此空间")
 	}
 
-	// 查询剪贴板内容
-	rows, err := config.DB.Query(`
-        SELECT id, clip_id, space_id, content_type, content, file_path, created_at 
-        FROM nlip_clipboard_items 
-        WHERE space_id = ? 
-        ORDER BY created_at DESC
-    `, spaceID)
+	// 使用通用查询语句
+	rows, err := config.DB.Query(
+		selectClipWithCreatorSQL + 
+		"WHERE c.space_id = ? ORDER BY c.created_at DESC", 
+		spaceID,
+	)
 
 	if err != nil {
+		logger.Error("获取剪贴板内容失败: %v", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
 	}
 	defer rows.Close()
 
 	var clips []clip.Clip
 	for rows.Next() {
-		var cl clip.Clip
-		err := rows.Scan(&cl.ID, &cl.ClipID, &cl.SpaceID, &cl.ContentType, &cl.Content, &cl.FilePath, &cl.CreatedAt)
+		cl, err := scanClip(rows)
 		if err != nil {
+			logger.Error("读取剪贴板数据失败: %v", err)
 			return fiber.NewError(fiber.StatusInternalServerError, "读取剪贴板数据失败")
 		}
-		clips = append(clips, cl)
+		clips = append(clips, *cl)
 	}
 
-	return c.JSON(clip.ListClipsResponse{
-		Clips: clips,
+	return c.JSON(fiber.Map{
+		"code": fiber.StatusOK,
+		"message": "获取成功",
+		"data": clip.ListClipsResponse{
+			Clips: clips,
+		},
 	})
 }
 
@@ -195,16 +315,40 @@ func HandleGetClip(c *fiber.Ctx) error {
 	// 验证剪贴板是否属于指定空间
 	var cl clip.Clip
 	var spaceType, spaceOwnerID string
+	var creatorID, creatorUsername sql.NullString
+	
 	err := config.DB.QueryRow(`
-        SELECT c.id, c.clip_id, c.space_id, c.content_type, c.content, c.file_path, c.created_at,
-               s.type as space_type, s.owner_id as space_owner_id
+        SELECT 
+            c.id, 
+            c.clip_id, 
+            c.space_id, 
+            c.content_type, 
+            c.content, 
+            c.file_path, 
+            c.created_at,
+            c.updated_at,
+            s.type as space_type, 
+            s.owner_id as space_owner_id,
+            u.id as creator_id,
+            u.username as creator_username
         FROM nlip_clipboard_items c
         JOIN nlip_spaces s ON c.space_id = s.id
+        LEFT JOIN nlip_users u ON c.creator_id = u.id
         WHERE c.clip_id = ? AND c.space_id = ?
     `, clipID, spaceID).Scan(
-		&cl.ID, &cl.ClipID, &cl.SpaceID, &cl.ContentType, &cl.Content, &cl.FilePath, &cl.CreatedAt,
-		&spaceType, &spaceOwnerID,
-	)
+        &cl.ID,
+        &cl.ClipID,
+        &cl.SpaceID,
+        &cl.ContentType,
+        &cl.Content,
+        &cl.FilePath,
+        &cl.CreatedAt,
+        &cl.UpdatedAt,
+        &spaceType,
+        &spaceOwnerID,
+        &creatorID,
+        &creatorUsername,
+    )
 
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "剪贴板内容不存在")
@@ -220,6 +364,14 @@ func HandleGetClip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusForbidden, "没有权限访问此内容")
 	}
 
+	// 如果有创建者信息，添加到响应中
+	if creatorID.Valid && creatorUsername.Valid {
+		cl.Creator = &clip.Creator{
+			ID:       creatorID.String,
+			Username: creatorUsername.String,
+		}
+	}
+
 	// 如果是文件类型，需要读取文件内容
 	if cl.FilePath != "" && c.Query("download") == "true" {
 		data, err := storage.GetFile(cl.FilePath)
@@ -233,8 +385,12 @@ func HandleGetClip(c *fiber.Ctx) error {
 		return c.Send(data)
 	}
 
-	return c.JSON(clip.ClipResponse{
-		Clip: &cl,
+	return c.JSON(fiber.Map{
+		"code": fiber.StatusOK,
+		"message": "获取成功",
+		"data": clip.ClipResponse{
+			Clip: &cl,
+		},
 	})
 }
 
@@ -296,4 +452,105 @@ func HandleDeleteClip(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// HandleUpdateClip 处理更新剪贴板内容
+func HandleUpdateClip(c *fiber.Ctx) error {
+	spaceID := c.Params("spaceId")
+	clipID := c.Params("id")
+	userID := c.Locals("userId").(string)
+	isAdmin := c.Locals("isAdmin").(bool)
+
+	logger.Debug("处理更新剪贴板内容请求: spaceID=%s, clipID=%s", spaceID, clipID)
+
+	// 添加请求解析
+	var req clip.UpdateClipRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
+	}
+
+	// 使用事务进行更新
+	err := db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+		// 验证剪贴板是否存在并获取当前信息
+		_, spaceOwnerID, err := scanClipWithSpaceOwner(tx.QueryRow(
+			selectClipWithSpaceAndCreatorSQL + 
+			"WHERE c.clip_id = ? AND c.space_id = ?",
+			clipID, spaceID,
+		))
+
+		if err == sql.ErrNoRows {
+			logger.Warning("尝试更新不存在的剪贴板内容: spaceID=%s, clipID=%s", spaceID, clipID)
+			return fiber.NewError(fiber.StatusNotFound, "剪贴板内容不存在")
+		} else if err != nil {
+			logger.Error("获取剪贴板内容失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
+		}
+
+		// 检查权限
+		if !isAdmin && spaceOwnerID != userID {
+			logger.Warning("用户 %s 尝试更新无权限的剪贴板内容: spaceID=%s, clipID=%s", userID, spaceID, clipID)
+			return fiber.NewError(fiber.StatusForbidden, "没有权限修改此内容")
+		}
+
+		// 更新内容
+		_, err = db.ExecTx(tx, `
+			UPDATE nlip_clipboard_items 
+			SET content = ?
+			WHERE clip_id = ? AND space_id = ?
+		`, req.Content, clipID, spaceID)
+
+		if err != nil {
+			logger.Error("更新剪贴板内容失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "更新剪贴板内容失败")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// 重新获取更新后的内容
+	var cl clip.Clip
+	var creatorID, creatorUsername sql.NullString
+	
+	err = config.DB.QueryRow(
+		selectClipWithCreatorSQL + 
+		"WHERE c.clip_id = ? AND c.space_id = ?", 
+		clipID, spaceID,
+	).Scan(
+		&cl.ID,
+		&cl.ClipID,
+		&cl.SpaceID,
+		&cl.ContentType,
+		&cl.Content,
+		&cl.FilePath,
+		&cl.CreatedAt,
+		&cl.UpdatedAt,
+		&creatorID,
+		&creatorUsername,
+	)
+
+	if err != nil {
+		logger.Error("获取更新后的剪贴板内容失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "获取更新后的内容失败")
+	}
+
+	// 添加创建者信息
+	if creatorID.Valid && creatorUsername.Valid {
+		cl.Creator = &clip.Creator{
+			ID:       creatorID.String,
+			Username: creatorUsername.String,
+		}
+	}
+
+	logger.Info("用户 %s 更新了剪贴板内容: spaceID=%s, clipID=%s", userID, spaceID, clipID)
+	return c.JSON(fiber.Map{
+		"code": fiber.StatusOK,
+		"message": "更新成功",
+		"data": clip.ClipResponse{
+			Clip: &cl,
+		},
+	})
 }

@@ -85,6 +85,7 @@ func createTables() error {
             max_items INT DEFAULT 20,
             retention_days INT DEFAULT 7,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (owner_id) REFERENCES nlip_users(id)
         )
     `)
@@ -103,13 +104,46 @@ func createTables() error {
             content_type VARCHAR(50) NOT NULL,
             content TEXT,
             file_path VARCHAR(255),
+            creator_id VARCHAR(36),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (space_id) REFERENCES nlip_spaces(id),
+            FOREIGN KEY (creator_id) REFERENCES nlip_users(id),
             UNIQUE (space_id, clip_id)
         )
     `)
     if err != nil {
         logger.Error("创建剪贴板内容表失败: %v", err)
+        return err
+    }
+
+    // 创建触发器，自动更新 updated_at 字段
+    logger.Debug("创建更新时间触发器")
+    _, err = DB.Exec(`
+        CREATE TRIGGER IF NOT EXISTS update_spaces_timestamp 
+        AFTER UPDATE ON nlip_spaces
+        BEGIN
+            UPDATE nlip_spaces 
+            SET updated_at = CURRENT_TIMESTAMP 
+            WHERE id = NEW.id;
+        END;
+    `)
+    if err != nil {
+        logger.Error("创建空间更新触发器失败: %v", err)
+        return err
+    }
+
+    _, err = DB.Exec(`
+        CREATE TRIGGER IF NOT EXISTS update_clips_timestamp 
+        AFTER UPDATE ON nlip_clipboard_items
+        BEGIN
+            UPDATE nlip_clipboard_items 
+            SET updated_at = CURRENT_TIMESTAMP 
+            WHERE id = NEW.id;
+        END;
+    `)
+    if err != nil {
+        logger.Error("创建剪贴板更新触发器失败: %v", err)
         return err
     }
 
@@ -123,8 +157,10 @@ func createTables() error {
         {"idx_users_username", "nlip_users", "username"},
         {"idx_spaces_owner", "nlip_spaces", "owner_id"},
         {"idx_spaces_type", "nlip_spaces", "type"},
+        {"idx_spaces_timestamps", "nlip_spaces", "created_at, updated_at"},
         {"idx_clips_space", "nlip_clipboard_items", "space_id"},
-        {"idx_clips_created", "nlip_clipboard_items", "created_at"},
+        {"idx_clips_creator", "nlip_clipboard_items", "creator_id"},
+        {"idx_clips_timestamps", "nlip_clipboard_items", "created_at, updated_at"},
     }
 
     for _, idx := range indexes {

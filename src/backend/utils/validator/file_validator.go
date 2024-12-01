@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"mime"
 	"path/filepath"
 	"strings"
 	"nlip/utils/logger"
+	"nlip/config"
 )
 
 var (
@@ -47,22 +47,9 @@ func ValidateFileType(filename string, contentType string) bool {
 	logger.Debug("验证文件类型: filename=%s, contentType=%s", filename, contentType)
 
 	// 检查文件扩展名
-	ext := strings.ToLower(filepath.Ext(filename))
-	if !allowedExtensions[ext] {
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
+	if !IsAllowedExtension(filename) {
 		logger.Warning("不支持的文件扩展名: %s", ext)
-		return false
-	}
-
-	// 检查MIME类型
-	mimeType := contentType
-	if mimeType == "" {
-		mimeType = mime.TypeByExtension(ext)
-	}
-
-	// 提取主要MIME类型
-	mainType := strings.Split(mimeType, ";")[0]
-	if !allowedMimeTypes[mainType] {
-		logger.Warning("不支持的MIME类型: %s", mainType)
 		return false
 	}
 
@@ -98,8 +85,25 @@ func IsAllowedMimeType(mimeType string) bool {
 
 // IsAllowedExtension 检查是否是允许的文件扩展名
 func IsAllowedExtension(filename string) bool {
-	ext := strings.ToLower(filepath.Ext(filename))
-	return allowedExtensions[ext]
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
+	
+	// 首先检查黑名单
+	for _, denied := range config.AppConfig.FileTypes.DenyList {
+		if ext == denied {
+			logger.Warning("文件扩展名在黑名单中: %s", ext)
+			return false
+		}
+	}
+	
+	// 然后检查白名单
+	for _, allowed := range config.AppConfig.FileTypes.AllowList {
+		if ext == allowed {
+			return true
+		}
+	}
+	
+	logger.Warning("不支持的文件扩展名: %s", ext)
+	return false
 }
 
 // RegisterMimeType 注册新的MIME类型

@@ -8,9 +8,10 @@ import (
     "nlip/utils/logger"
     "nlip/utils/db"
     "nlip/utils/id"
+    "time"
 )
 
-// HandleListSpaces 获取空间列表
+// HandleListSpaces 处理获取空间列表
 func HandleListSpaces(c *fiber.Ctx) error {
     userID := c.Locals("userId").(string)
     isAdmin := c.Locals("isAdmin").(bool)
@@ -23,14 +24,16 @@ func HandleListSpaces(c *fiber.Ctx) error {
     // 管理员可以看到所有空间，普通用户只能看到公共空间和自己的私有空间
     if isAdmin {
         rows, err = db.QueryRows(config.DB, `
-            SELECT id, name, type, owner_id, max_items, retention_days, created_at 
+            SELECT id, name, type, owner_id, max_items, retention_days, created_at, updated_at
             FROM nlip_spaces
+            ORDER BY created_at DESC
         `)
     } else {
         rows, err = db.QueryRows(config.DB, `
-            SELECT id, name, type, owner_id, max_items, retention_days, created_at 
+            SELECT id, name, type, owner_id, max_items, retention_days, created_at, updated_at
             FROM nlip_spaces 
             WHERE type = 'public' OR owner_id = ?
+            ORDER BY created_at DESC
         `, userID)
     }
 
@@ -43,7 +46,16 @@ func HandleListSpaces(c *fiber.Ctx) error {
     var spaces []space.Space
     for rows.Next() {
         var s space.Space
-        err := rows.Scan(&s.ID, &s.Name, &s.Type, &s.OwnerID, &s.MaxItems, &s.RetentionDays, &s.CreatedAt)
+        err := rows.Scan(
+            &s.ID, 
+            &s.Name, 
+            &s.Type, 
+            &s.OwnerID, 
+            &s.MaxItems, 
+            &s.RetentionDays, 
+            &s.CreatedAt,
+            &s.UpdatedAt,
+        )
         if err != nil {
             logger.Error("读取空间数据失败: %v", err)
             return fiber.NewError(fiber.StatusInternalServerError, "读取空间数据失败")
@@ -61,7 +73,7 @@ func HandleListSpaces(c *fiber.Ctx) error {
     })
 }
 
-// HandleCreateSpace 创建空间
+// HandleCreateSpace 处理创建空间
 func HandleCreateSpace(c *fiber.Ctx) error {
     var req space.CreateSpaceRequest
     if err := c.BodyParser(&req); err != nil {
@@ -80,22 +92,25 @@ func HandleCreateSpace(c *fiber.Ctx) error {
         return fiber.NewError(fiber.StatusForbidden, "没有权限创建公共空间")
     }
 
+    now := time.Now()
     // 创建空间
     s := space.Space{
-        ID: id.GenerateSpaceID(),
+        ID:            id.GenerateSpaceID(),
         Name:          req.Name,
         Type:          req.Type,
         OwnerID:       userID,
         MaxItems:      req.MaxItems,
         RetentionDays: req.RetentionDays,
+        CreatedAt:     now,
+        UpdatedAt:     now,
     }
 
     // 插入数据库
     err := db.WithTransaction(config.DB, func(tx *sql.Tx) error {
         _, err := db.ExecTx(tx, `
-            INSERT INTO nlip_spaces (id, name, type, owner_id, max_items, retention_days) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        `, s.ID, s.Name, s.Type, s.OwnerID, s.MaxItems, s.RetentionDays)
+            INSERT INTO nlip_spaces (id, name, type, owner_id, max_items, retention_days, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, s.ID, s.Name, s.Type, s.OwnerID, s.MaxItems, s.RetentionDays, s.CreatedAt, s.UpdatedAt)
         return err
     })
 
@@ -114,7 +129,7 @@ func HandleCreateSpace(c *fiber.Ctx) error {
     })
 }
 
-// HandleUpdateSpace 更新空间
+// HandleUpdateSpace 处理更新空间
 func HandleUpdateSpace(c *fiber.Ctx) error {
     spaceID := c.Params("id")
     var req space.UpdateSpaceRequest
@@ -131,9 +146,18 @@ func HandleUpdateSpace(c *fiber.Ctx) error {
     // 检查空间是否存在并获取当前信息
     var s space.Space
     err := config.DB.QueryRow(`
-        SELECT id, name, type, owner_id, max_items, retention_days, created_at 
+        SELECT id, name, type, owner_id, max_items, retention_days, created_at, updated_at
         FROM nlip_spaces WHERE id = ?
-    `, spaceID).Scan(&s.ID, &s.Name, &s.Type, &s.OwnerID, &s.MaxItems, &s.RetentionDays, &s.CreatedAt)
+    `, spaceID).Scan(
+        &s.ID, 
+        &s.Name, 
+        &s.Type, 
+        &s.OwnerID, 
+        &s.MaxItems, 
+        &s.RetentionDays, 
+        &s.CreatedAt,
+        &s.UpdatedAt,
+    )
 
     if err == sql.ErrNoRows {
         logger.Warning("尝试更新不存在的空间: %s", spaceID)
@@ -164,7 +188,7 @@ func HandleUpdateSpace(c *fiber.Ctx) error {
     err = db.WithTransaction(config.DB, func(tx *sql.Tx) error {
         _, err := db.ExecTx(tx, `
             UPDATE nlip_spaces 
-            SET name = ?, max_items = ?, retention_days = ? 
+            SET name = ?, max_items = ?, retention_days = ?
             WHERE id = ?
         `, s.Name, s.MaxItems, s.RetentionDays, s.ID)
         return err
@@ -175,13 +199,33 @@ func HandleUpdateSpace(c *fiber.Ctx) error {
         return fiber.NewError(fiber.StatusInternalServerError, "更新空间失败")
     }
 
+    // 重新获取更新后的空间信息（包括新的 updated_at）
+    err = config.DB.QueryRow(`
+        SELECT id, name, type, owner_id, max_items, retention_days, created_at, updated_at
+        FROM nlip_spaces WHERE id = ?
+    `, spaceID).Scan(
+        &s.ID, 
+        &s.Name, 
+        &s.Type, 
+        &s.OwnerID, 
+        &s.MaxItems, 
+        &s.RetentionDays, 
+        &s.CreatedAt,
+        &s.UpdatedAt,
+    )
+
+    if err != nil {
+        logger.Error("获取更新后的空间信息失败: %v", err)
+        return fiber.NewError(fiber.StatusInternalServerError, "获取更新后的空间信息失败")
+    }
+
     logger.Info("用户 %s 更新了空间: id=%s, name=%s", userID, s.ID, s.Name)
     return c.JSON(fiber.Map{
         "code": fiber.StatusOK,
+        "message": "更新空间成功",
         "data": space.SpaceResponse{
             Space: &s,
         },
-        "message": "更新空间成功",
     })
 }
 

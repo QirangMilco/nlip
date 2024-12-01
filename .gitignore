@@ -65,6 +65,9 @@ android/.gradle/
 *.test
 *.out 
 
+# files
+uploads/
+
 ask.md
 light.md
 plan.md

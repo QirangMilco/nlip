@@ -1,46 +1,47 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { User, AuthResponse } from '@/store/types';
+import { User } from '../types';
 
-interface AuthState {
-  isAuthenticated: boolean;
-  user: User | null;
-  isInitialized: boolean;
+export interface AuthState {
   token: string | null;
+  user: User | null;
   needChangePwd: boolean;
-  loading: boolean;
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface SetAuthPayload {
+  token: string;
+  user: User;
+  needChangePwd: boolean;
 }
 
 const initialState: AuthState = {
-  isAuthenticated: false,
-  user: null,
-  isInitialized: false,
   token: null,
+  user: null,
   needChangePwd: false,
-  loading: false
+  isLoading: false,
+  error: null
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setAuth: (state, action: PayloadAction<AuthResponse>) => {
-      state.isAuthenticated = true;
-      state.user = action.payload.user;
-      state.isInitialized = true;
+    setAuth: (state, action: PayloadAction<SetAuthPayload>) => {
       state.token = action.payload.token;
+      state.user = action.payload.user;
       state.needChangePwd = action.payload.needChangePwd;
-      state.loading = false;
+    },
+    setNeedChangePwd: (state, action: PayloadAction<boolean>) => {
+      state.needChangePwd = action.payload;
     },
     clearAuth: (state) => {
-      state.isAuthenticated = false;
-      state.user = null;
-      state.isInitialized = true;
       state.token = null;
+      state.user = null;
       state.needChangePwd = false;
-      state.loading = false;
-    },
-  },
+    }
+  }
 });
 
-export const { setAuth, clearAuth } = authSlice.actions;
+export const { setAuth, setNeedChangePwd, clearAuth } = authSlice.actions;
 export default authSlice.reducer; 

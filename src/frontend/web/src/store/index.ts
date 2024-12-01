@@ -1,31 +1,27 @@
 import { configureStore } from '@reduxjs/toolkit';
+import { persistStore, persistReducer } from 'redux-persist';
+import storage from 'redux-persist/lib/storage';
 import authReducer from './slices/authSlice';
-import spaceReducer from './slices/spaceSlice';
-import clipReducer from './slices/clipSlice';
-import { Action } from '@reduxjs/toolkit';
-import { ThunkAction } from 'redux-thunk';
+
+const persistConfig = {
+  key: 'root',
+  storage
+};
+
+const persistedReducer = persistReducer(persistConfig, authReducer);
 
 export const store = configureStore({
   reducer: {
-    auth: authReducer,
-    space: spaceReducer,
-    clip: clipReducer,
+    auth: persistedReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: {
-        ignoredActions: ['auth/setAuth'],
-      },
+      serializableCheck: false
     }),
+  devTools: true
 });
 
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
+export const persistor = persistStore(store);
 
-// 导出hooks类型
-export type AppThunk<ReturnType = void> = ThunkAction<
-  ReturnType,
-  RootState,
-  unknown,
-  Action<string>
->; 
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch; 

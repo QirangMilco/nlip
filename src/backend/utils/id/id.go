@@ -55,7 +55,7 @@ func GenerateClipID(spaceID string) (string, string) {
 		
 		// 检查同空间内是否存在相同的剪贴板ID
 		var exists bool
-		err := config.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM nlip_clips WHERE space_id = ? AND clip_id = ?)", spaceID, clipID).Scan(&exists)
+		err := config.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM nlip_clipboard_items WHERE space_id = ? AND clip_id = ?)", spaceID, clipID).Scan(&exists)
 		if err != nil {
 			logger.Error("检查剪贴板ID唯一性失败: %v", err)
 			continue

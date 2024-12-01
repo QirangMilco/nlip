@@ -1,56 +1,85 @@
 package routes
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"nlip/handlers/admin"
 	authHandler "nlip/handlers/auth"
-	"nlip/handlers/spaces"
 	"nlip/handlers/clips"
 	"nlip/handlers/info"
+	"nlip/handlers/spaces"
+	"nlip/handlers/ws"
 	"nlip/middleware/auth"
 	"nlip/middleware/validator"
-	"nlip/models/user"
-	"nlip/models/space"
 	"nlip/models/clip"
+	"nlip/models/space"
+	"nlip/models/user"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/websocket/v2"
 )
 
 func SetupRoutes(app *fiber.App) {
-	// 添加根路径处理
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status": "success",
-			"message": "NLIP API 服务正在运行",
-			"version": "1.0.0",
-		})
-	})
-
 	// API路由组
 	api := app.Group("/api/v1/nlip")
 
-	// 认证路由
+	// 1. 完全公开的路由 - 不需要认证
+	api.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"code":    fiber.StatusOK,
+			"message": "NLIP API 服务正在运行",
+			"data": fiber.Map{
+				"version": "1.0.0",
+				"status":  "running",
+			},
+		})
+	})
+
+	// 2. 认证路由 - 不需要token
 	authRoutes := api.Group("/auth")
 	authRoutes.Post("/login", validator.ValidateBody(&user.LoginRequest{}), authHandler.HandleLogin)
 	authRoutes.Post("/register", validator.ValidateBody(&user.RegisterRequest{}), authHandler.HandleRegister)
-	authRoutes.Get("/me", authHandler.HandleGetCurrentUser)
-	authRoutes.Post("/change-password", auth.AuthMiddleware(), validator.ValidateBody(&user.ChangePasswordRequest{}), authHandler.HandleChangePassword)
 
-	// 需要认证的路由组
-	authenticated := api.Use(auth.AuthMiddleware())
+	// 3. 需要认证的路由组 - 需要token
+	authenticated := api.Group("")
+	authenticated.Use(auth.AuthMiddleware())
 
-	// 信息路由
+	// 用户相关路由
+	authenticated.Get("/auth/me", authHandler.HandleGetCurrentUser)
+	authenticated.Post("/auth/change-password",
+		validator.ValidateBody(&user.ChangePasswordRequest{}),
+		authHandler.HandleChangePassword)
+
+	// 用户信息路由
 	infoRoutes := authenticated.Group("/info")
 	infoRoutes.Get("/me", info.HandleGetCurrentUserInfo)
 
-	// 空间路由
+	// 空间路由 - 所有操作都需要验证
 	spaceRoutes := authenticated.Group("/spaces")
 	spaceRoutes.Get("/list", spaces.HandleListSpaces)
-	spaceRoutes.Post("/create", validator.ValidateBody(&space.CreateSpaceRequest{}), spaces.HandleCreateSpace)
-	spaceRoutes.Put("/:id", validator.ValidateBody(&space.UpdateSpaceRequest{}), spaces.HandleUpdateSpace)
+	spaceRoutes.Post("/create",
+		validator.ValidateBody(&space.CreateSpaceRequest{}),
+		spaces.HandleCreateSpace)
+	spaceRoutes.Put("/:id",
+		validator.ValidateBody(&space.UpdateSpaceRequest{}),
+		spaces.HandleUpdateSpace)
 	spaceRoutes.Delete("/:id", spaces.HandleDeleteSpace)
 
-	// 空间下的剪贴板路由
+	// 剪贴板路由 - 所有操作都需要验证
 	clipRoutes := spaceRoutes.Group("/:spaceId/clips")
-	clipRoutes.Post("/upload", validator.ValidateBody(&clip.UploadClipRequest{}), clips.HandleUploadClip)
 	clipRoutes.Get("/list", clips.HandleListClips)
 	clipRoutes.Get("/:id", clips.HandleGetClip)
+	clipRoutes.Post("/upload",
+		validator.ValidateBody(&clip.UploadClipRequest{}),
+		clips.HandleUploadClip)
+	clipRoutes.Put("/:id",
+		validator.ValidateBody(&clip.UpdateClipRequest{}),
+		clips.HandleUpdateClip)
 	clipRoutes.Delete("/:id", clips.HandleDeleteClip)
-} 
+
+	// WebSocket路由 - 需要验证
+	authenticated.Get("/ws", websocket.New(ws.HandleWebSocket))
+
+	// 管理员路由 - 需要验证
+	adminRoutes := authenticated.Group("/admin")
+	adminRoutes.Get("/settings", admin.HandleGetSettings)
+	adminRoutes.Put("/settings", admin.HandleUpdateSettings)
+}

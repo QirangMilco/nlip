@@ -7,18 +7,27 @@ const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
 // 请求拦截器
 http.interceptors.request.use(
   (config) => {
-    // 优先从 localStorage 获取 token
-    const token = localStorage.getItem('token') || store.getState().auth.token;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // 检查是否是无需token的路由
+    const noAuthRequired = [
+      '/auth/login',
+      '/auth/register'
+    ].some(path => config.url?.includes(path));
+
+    if (!noAuthRequired) {
+      // 从 Redux store 获取 token
+      const token = store.getState().auth.token;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+    
     return config;
   },
   (error) => {
@@ -29,6 +38,11 @@ http.interceptors.request.use(
 // 响应拦截器
 http.interceptors.response.use(
   (response) => {
+    // 如果是 blob 类型的响应，直接返回
+    if (response.config.responseType === 'blob') {
+      return response;
+    }
+    
     return response.data;
   },
   async (error) => {
@@ -38,14 +52,13 @@ http.interceptors.response.use(
       // 处理401错误
       if (status === 401) {
         // 清除认证信息
-        localStorage.removeItem('token');
         store.dispatch(clearAuth());
         
         // 获取当前路由
         const currentPath = window.location.pathname;
         
-        // 如果不是登录页,则跳转到登录页并携带 redirect 参数
-        if (!currentPath.includes('/login')) {
+        // 如果不是登录页且不是验证token的请求，则跳转到登录页
+        if (!currentPath.includes('/login') && !error.config.url.includes('/auth/me')) {
           window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
         }
         
