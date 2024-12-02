@@ -35,9 +35,14 @@ export const useClips = (spaceId: string) => {
       formData.append('spaceId', data.spaceId);
 
       const response = await clipApi.uploadClip(formData);
+      if (!response || !response.clipId) {
+        throw new Error('上传响应数据格式错误');
+      }
+      
       setClips(prev => Array.isArray(prev) ? [response, ...prev] : [response]);
       return response;
     } catch (err) {
+      console.error('上传失败:', err);
       throw err;
     }
   }, []);

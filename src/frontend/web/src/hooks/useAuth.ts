@@ -1,10 +1,11 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, store } from '@/store';
+import { RootState } from '@/store';
 import { setAuth, clearAuth } from '@/store/slices/authSlice';
 import { validateTokenAndGetUser, login as loginApi } from '@/api/auth';
 import type { LoginRequest } from '@/store/types';
+import { isPublicRoute } from '@/constants/routes';
 
 export const useAuth = () => {
   const navigate = useNavigate();
@@ -16,6 +17,11 @@ export const useAuth = () => {
 
   const validateAuth = useCallback(async () => {
     if (validatingRef.current || location.pathname.includes('/login')) {
+      setIsInitialCheckDone(true);
+      return;
+    }
+
+    if (isPublicRoute(location.pathname)) {
       setIsInitialCheckDone(true);
       return;
     }

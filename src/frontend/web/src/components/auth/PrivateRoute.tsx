@@ -1,9 +1,11 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
 import { Spin } from 'antd';
 import { useAuth } from '@/hooks/useAuth';
+import { isPublicRoute } from '@/constants/routes';
+import styles from '@/components/common/Loading.module.scss';
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -14,10 +16,6 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const { token, user, needChangePwd } = useSelector((state: RootState) => state.auth);
   const { isInitialCheckDone } = useAuth();
 
-  const isPublicRoute = useCallback((path: string) => {
-    return ['/login', '/register', '/change-password'].some(route => path.includes(route));
-  }, []);
-
   if (!isInitialCheckDone) {
     return (
       <div style={{ 
@@ -26,7 +24,10 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
         alignItems: 'center', 
         height: '100vh' 
       }}>
-        <Spin size="large" tip="验证登录状态..." />
+        <Spin size="large" />
+        <div className={styles.loadingText}>
+          验证登录状态...
+        </div>
       </div>
     );
   }

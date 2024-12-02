@@ -7,14 +7,14 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
 <p align="center">
   <img src="docs/images/logo.png" alt="Nlip Logo" width="200"/>
   <br>
-  <a href="https://github.com/yourusername/nlip/releases">
-    <img src="https://img.shields.io/github/v/release/yourusername/nlip" alt="GitHub release">
+  <a href="https://github.com/QirangMilco/nlip/releases">
+    <img src="https://img.shields.io/github/v/release/QirangMilco/nlip" alt="GitHub release">
   </a>
-  <a href="https://github.com/yourusername/nlip/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/yourusername/nlip" alt="License">
+  <a href="https://github.com/QirangMilco/nlip/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/QirangMilco/nlip" alt="License">
   </a>
-  <a href="https://github.com/yourusername/nlip/actions">
-    <img src="https://github.com/yourusername/nlip/workflows/CI/badge.svg" alt="CI Status">
+  <a href="https://github.com/QirangMilco/nlip/actions">
+    <img src="https://github.com/QirangMilco/nlip/workflows/CI/badge.svg" alt="CI Status">
   </a>
 </p>
 
@@ -39,6 +39,7 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
 - Space-based content organization and management
 - Real-time synchronization
 - Space permission management
+- **Guest Uploads in Public Spaces**: Allow unauthenticated users to upload content to public spaces
 
 ### Security Features
 - User authentication and authorization

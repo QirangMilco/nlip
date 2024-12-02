@@ -17,8 +17,7 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false
-    }),
-  devTools: true
+    })
 });
 
 export const persistor = persistStore(store);

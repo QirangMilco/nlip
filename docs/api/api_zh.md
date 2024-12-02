@@ -166,31 +166,68 @@
 
 ### 上传内容
 - **POST** `/spaces/:spaceId/clips/upload`
-- **需要认证**: 是
+- **需要认证**: 是（公共空间的游客上传除外）
 - **Content-Type**: `multipart/form-data`
-- **请求参数**:  ```typescript
-  {
-    file?: File;           // 可选，如果上传文件
-    content?: string;      // 可选，如果是文本内容
-    contentType: string;   // 内容类型
-    spaceId: string;      // 所属空间ID
-  }  ```
-- **响应**:  ```typescript
-  {
-    code: 201;
-    data: {
-      clip: {
-        id: string;
-        clipId: string;
-        spaceId: string;
-        contentType: string;
-        content?: string;
-        filePath?: string;
-        createdAt: string;
-      };
+- **请求参数**:
+```typescript
+{
+  file?: File;           // 可选，如果上传文件
+  content?: string;      // 可选，如果是文本内容
+  contentType: string;   // 内容类型
+  spaceId: string;       // 所属空间ID
+}
+```
+- **响应**:
+```typescript
+{
+  code: 201;
+  data: {
+    clip: {
+      id: string;
+      clipId: string;
+      spaceId: string;
+      contentType: string;
+      content?: string;
+      filePath?: string;
+      createdAt: string;
     };
-    message: string;
-  }  ```
+  };
+  message: string;
+}
+```
+
+### 公共空间游客上传
+- **POST** `/spaces/public-space/clips/guest-upload`
+- **需要认证**: 否
+- **Content-Type**: `multipart/form-data`
+- **请求参数**:
+```typescript
+{
+  file?: File;           // 可选，如果上传文件
+  content?: string;      // 可选，如果是文本内容
+  contentType: string;   // 内容类型
+  spaceId: string;       // 所属空间ID
+  creator: string;       // 必须为 "guest"
+}
+```
+- **响应**:
+```typescript
+{
+  code: 201;
+  data: {
+    clip: {
+      id: string;
+      clipId: string;
+      spaceId: string;
+      contentType: string;
+      content?: string;
+      filePath?: string;
+      createdAt: string;
+    };
+  };
+  message: string;
+}
+```
 
 ### 获取内容列表
 - **GET** `/spaces/:spaceId/clips/list`
@@ -337,14 +374,6 @@ interface WSMessage {
 2. 使用 `POST /api/v1/nlip/_debug/log-level` 调整日志级别
 3. 通过 `GET /api/v1/nlip/_debug/metrics` 查看性能指标
 
-## 变更日志
-
-### v1.0.0 (2024-03-01)
-- 初始版本发布
-- 支持基础的CRUD操作
-- 实现用户认证和授权
-- 添加WebSocket实时通知
-
 ## 管理员 API
 
 ### 获取服务器设置
@@ -409,3 +438,5 @@ interface WSMessage {
 2. 文件类型只需提供扩展名，不含点号(如: "jpg" 而不是 ".jpg")
 3. 令牌过期时间格式为时间字符串(如: "24h", "7d")
 4. 更新设置后会立即生效并保存到配置文件
+5. 公共空间的上传可以通过 `/guest-upload` 接口由游客完成。
+6. 确保游客上传时 `creator` 字段设置为 "guest"。

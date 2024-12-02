@@ -2,6 +2,7 @@ import axios from 'axios';
 import { message } from 'antd';
 import { store } from '@/store';
 import { clearAuth } from '@/store/slices/authSlice';
+import { isPublicRoute } from '@/constants/routes';
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -15,10 +16,7 @@ const http = axios.create({
 http.interceptors.request.use(
   (config) => {
     // 检查是否是无需token的路由
-    const noAuthRequired = [
-      '/auth/login',
-      '/auth/register'
-    ].some(path => config.url?.includes(path));
+    const noAuthRequired = isPublicRoute(config.url || '');
 
     if (!noAuthRequired) {
       // 从 Redux store 获取 token

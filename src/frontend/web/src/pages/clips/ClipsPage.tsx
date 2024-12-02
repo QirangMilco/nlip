@@ -19,6 +19,7 @@ import SpaceSettingsModal from './components/SpaceSettingsModal';
 import { UploadClipRequest, Clip } from '@/store/types';
 import styles from './ClipsPage.module.scss';
 import { updateClip } from '@/api/clips';
+import { SPACE_CONSTANTS } from '@/constants/spaces';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -55,13 +56,28 @@ const ClipsPage: React.FC = () => {
     [spaces, spaceId]
   );
 
+  // 添加用户认证状态检查
+  const { token } = useSelector((state: RootState) => state.auth);
+  const isPublicSpace = spaceId === SPACE_CONSTANTS.PUBLIC_SPACE_ID;
+  const isGuest = isPublicSpace && !token;
+
+  // 修改权限检查逻辑
+  const canManageClip = (clip: Clip) => {
+    if (isGuest) return false;
+    if (!currentUser) return false;
+    if (currentUser.isAdmin) return true;
+    return clip.creator?.id === currentUser.id;
+  };
+
+  // 修改空间管理权限检查
   const canManageSpace = useMemo(() => {
+    if (isGuest) return false;
     if (!currentUser || !currentSpace) return false;
     if (currentUser.isAdmin) {
       return currentSpace.ownerId === 'system' || currentSpace.ownerId === currentUser.id;
     }
     return currentSpace.ownerId === currentUser.id;
-  }, [currentUser, currentSpace]);
+  }, [currentUser, currentSpace, isGuest]);
 
   const sortedClips = useMemo(() => {
     if (!clips) return [];
@@ -143,7 +159,7 @@ const ClipsPage: React.FC = () => {
 
   const handleLogout = () => {
     dispatch(clearAuth());
-    navigate('/login', { replace: true });
+    navigate('/clips/public-space', { replace: true });
   };
 
   const handleCopy = async (clip: Clip) => {
@@ -227,9 +243,117 @@ const ClipsPage: React.FC = () => {
     handleUpload(data);
   };
 
+  // 修改剪贴板操作按钮渲染
+  const renderClipActions = (clip: Clip) => (
+    <div className={styles.clipActions}>
+      <Tooltip title="复制文本">
+        <Button 
+          type="text" 
+          icon={<CopyOutlined />}
+          onClick={() => handleCopy(clip)}
+          disabled={!clip.content}
+        />
+      </Tooltip>
+      
+      {clip.filePath && (
+        <Tooltip title="下载文件">
+          <Button 
+            type="text" 
+            icon={<DownloadOutlined />}
+            onClick={() => handleDownload(clip)}
+          />
+        </Tooltip>
+      )}
+      
+      {/* 只有非游客且有权限的用户才能看到编辑按钮 */}
+      {canManageClip(clip) && !clip.filePath && (
+        <Tooltip title="修改">
+          <Button 
+            type="text" 
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(clip)}
+          />
+        </Tooltip>
+      )}
+      
+      {/* 只有非游客且有权限的用户才能看到删除按钮 */}
+      {canManageClip(clip) && (
+        <Tooltip title="删除">
+          <Button 
+            type="text" 
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(clip.clipId)}
+          />
+        </Tooltip>
+      )}
+    </div>
+  );
+
+  // 修改标题栏渲染
+  const renderHeader = () => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <span>剪贴板 - {currentSpace?.name}</span>
+        <Select
+          value={currentSpace?.id}
+          onChange={handleSpaceChange}
+          style={{ width: 200 }}
+          loading={loadingSpaces}
+        >
+          {spaces.map(s => (
+            <Select.Option key={s.id} value={s.id}>
+              {s.name}
+              {s.ownerId === currentUser?.id && ' (我的)'}
+              {s.ownerId === 'system' && ' (公共)'}
+            </Select.Option>
+          ))}
+        </Select>
+      </div>
+      <AntSpace>
+        {currentUser ? (
+          <span className={styles.username}>{currentUser.username}</span>
+        ) : (
+          <span className={styles.guest}>游客</span>
+        )}
+        {canManageSpace && (
+          <Button 
+            icon={<SettingOutlined />}
+            onClick={() => setShowSettings(true)}
+          >
+            空间设置
+          </Button>
+        )}
+        {token ? (
+          <Button 
+            icon={<LogoutOutlined />} 
+            onClick={handleLogout}
+            danger
+          >
+            退出登录
+          </Button>
+        ) : (
+          <Button 
+            type="primary"
+            onClick={() => navigate('/login')}
+          >
+            登录
+          </Button>
+        )}
+      </AntSpace>
+    </div>
+  );
+
   // 7. 条件渲染
-  if (loadingSpaces) {
-    return <Spin />;
+  if (loadingSpaces || isLoadingClips) {
+    return (
+      <div className={styles.loading}>
+        <Spin />
+        <div className={styles.loadingText}>
+          {loadingSpaces ? '加载空间中...' : '加载剪贴板中...'}
+        </div>
+      </div>
+    );
   }
 
   if (spaces.length === 0) {
@@ -242,47 +366,8 @@ const ClipsPage: React.FC = () => {
 
   // 8. 主要渲染
   return (
-    <Card 
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span>剪贴板 - {currentSpace.name}</span>
-            <Select
-              value={currentSpace.id}
-              onChange={handleSpaceChange}
-              style={{ width: 200 }}
-              loading={loadingSpaces}
-            >
-              {spaces.map(s => (
-                <Select.Option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.ownerId === currentUser?.id && ' (我的)'}
-                  {s.ownerId === 'system' && ' (公共)'}
-                </Select.Option>
-              ))}
-            </Select>
-          </div>
-          <AntSpace>
-            {canManageSpace && (
-              <Button 
-                icon={<SettingOutlined />}
-                onClick={() => setShowSettings(true)}
-              >
-                空间设置
-              </Button>
-            )}
-            <Button 
-              icon={<LogoutOutlined />} 
-              onClick={handleLogout}
-              danger
-            >
-              退出登录
-            </Button>
-          </AntSpace>
-        </div>
-      }
-    >
-      {/* 新增输入框部分 */}
+    <Card title={renderHeader()}>
+      {/* 新增剪贴板输入框 */}
       <div className={styles.newClip}>
         <TextArea
           value={newContent}
@@ -335,56 +420,11 @@ const ClipsPage: React.FC = () => {
                     {clip.updatedAt !== clip.createdAt && 
                       `，更新于 ${dayjs(clip.updatedAt).format('YYYY-MM-DD HH:mm')}`}
                   </Text>
-                  {currentSpace?.type === 'public' && (
-                    <Text type="secondary">
-                      创建者: {clip.creator?.username || '未知用户'}
-                    </Text>
-                  )}
+                  <Text type="secondary">
+                    创建者: {clip.creator?.username || '游客'}
+                  </Text>
                 </div>
-                <div className={styles.clipActions}>
-                  <Tooltip title="复制文本">
-                    <Button 
-                      type="text" 
-                      icon={<CopyOutlined />}
-                      onClick={() => handleCopy(clip)}
-                      // 如果没有文本内容则禁用复制按钮
-                      disabled={!clip.content}
-                    />
-                  </Tooltip>
-                  
-                  {/* 如果有文件路径，显示下载按钮 */}
-                  {clip.filePath && (
-                    <Tooltip title="下载文件">
-                      <Button 
-                        type="text" 
-                        icon={<DownloadOutlined />}
-                        onClick={() => handleDownload(clip)}
-                      />
-                    </Tooltip>
-                  )}
-                  
-                  <Tooltip title="修改">
-                    <Button 
-                      type="text" 
-                      icon={<EditOutlined />}
-                      onClick={() => handleEdit(clip)}
-                      // 如果是文件类型则禁用修改按钮
-                      disabled={!!clip.filePath}
-                    />
-                  </Tooltip>
-                  
-                  {(currentSpace?.type === 'private' || 
-                    clip.creator?.id === currentUser?.id) && (
-                    <Tooltip title="删除">
-                      <Button 
-                        type="text" 
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDelete(clip.clipId)}
-                      />
-                    </Tooltip>
-                  )}
-                </div>
+                {renderClipActions(clip)}
               </div>
 
               {/* 内容部分 */}

@@ -9,6 +9,9 @@ import ChangePasswordPage from '@/pages/auth/ChangePasswordPage';
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
+      {/* 默认重定向到公共空间 */}
+      <Route path="/" element={<Navigate to="/clips/public-space" replace />} />
+      
       {/* 公共路由 */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -41,9 +44,8 @@ const AppRoutes: React.FC = () => {
         }
       />
       
-      {/* 默认重定向到登录页 */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* 未匹配路由重定向到公共空间 */}
+      <Route path="*" element={<Navigate to="/spaces/public-space" replace />} />
     </Routes>
   );
 };

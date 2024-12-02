@@ -33,6 +33,21 @@ func SetupRoutes(app *fiber.App) {
 		})
 	})
 
+	// 添加公共空间的路由 - 不需要认证
+	publicSpaceRoutes := api.Group("/spaces/public-space")
+	publicSpaceRoutes.Get("/clips/list", clips.HandleListPublicClips)
+	publicSpaceRoutes.Post("/clips/guest-upload",
+		validator.ValidateBody(&clip.UploadClipRequest{}),
+		clips.HandleUploadPublicClip)
+	publicSpaceRoutes.Post("/clips/upload",
+		auth.AuthMiddleware(),
+		validator.ValidateBody(&clip.UploadClipRequest{}),
+		clips.HandleUploadClip)
+	publicSpaceRoutes.Get("/clips/:id", clips.HandleGetPublicClip)
+
+	// 添加获取空间列表的公开路由
+	api.Get("/spaces/list", spaces.HandleListSpaces)
+
 	// 2. 认证路由 - 不需要token
 	authRoutes := api.Group("/auth")
 	authRoutes.Post("/login", validator.ValidateBody(&user.LoginRequest{}), authHandler.HandleLogin)
@@ -82,4 +97,10 @@ func SetupRoutes(app *fiber.App) {
 	adminRoutes := authenticated.Group("/admin")
 	adminRoutes.Get("/settings", admin.HandleGetSettings)
 	adminRoutes.Put("/settings", admin.HandleUpdateSettings)
+
+	// 4. 建议添加版本控制中间件
+	api.Use(func(c *fiber.Ctx) error {
+		c.Set("API-Version", "1.0.0")
+		return c.Next()
+	})
 }
