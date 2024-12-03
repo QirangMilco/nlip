@@ -22,11 +22,12 @@ type Creator struct {
 }
 
 type UploadClipRequest struct {
-    SpaceID     string `json:"spaceId" validate:"required"`
-    ContentType string `json:"contentType" validate:"required"`
-    Content     string `json:"content,omitempty"`
+    SpaceID     string `json:"spaceId"`
+    Content     string `json:"content"`
+    ContentType string `json:"contentType"`
+    Creator     string `json:"creator,omitempty"`
     File        []byte `json:"-"`
-    FileName    string `json:"fileName,omitempty"`
+    FileName    string `json:"-"`
 }
 
 type ClipResponse struct {

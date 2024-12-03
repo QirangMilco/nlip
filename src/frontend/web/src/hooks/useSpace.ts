@@ -13,7 +13,7 @@ export function useSpace() {
   const fetchSpaces = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('fetchSpaces time', new Date().toLocaleString());
+      // console.log('fetchSpaces time', new Date().toLocaleString());
       const data = await spaceApi.listSpaces();
       setSpaces(data);
       setError(null);
@@ -21,7 +21,7 @@ export function useSpace() {
       setError(err as Error);
     } finally {
       setLoading(false);
-      console.log('fetchSpaces done time', new Date().toLocaleString());
+      // console.log('fetchSpaces done time', new Date().toLocaleString());
     }
   }, []);
 

@@ -1,22 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClips } from '@/hooks/useClip';
 import { useSpace } from '@/hooks/useSpace';
 import { 
   Card, Empty, Spin, Select, Button, Space as AntSpace, 
-  Input, message, Typography, Tooltip 
+  Input, message, Typography, Tooltip, Modal
 } from 'antd';
 import { 
   LogoutOutlined, SettingOutlined, CopyOutlined,
   EditOutlined, DeleteOutlined, UploadOutlined,
-  SaveOutlined, DownloadOutlined, FileOutlined
+  SaveOutlined, DownloadOutlined,
+  LoadingOutlined, ReloadOutlined
 } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearAuth } from '@/store/slices/authSlice';
 import { RootState } from '@/store';
 import dayjs from 'dayjs';
 import SpaceSettingsModal from './components/SpaceSettingsModal';
-import { UploadClipRequest, Clip } from '@/store/types';
+import { UploadClipRequest, Clip, ImagePreviewState } from '@/store/types';
 import styles from './ClipsPage.module.scss';
 import { updateClip } from '@/api/clips';
 import { SPACE_CONSTANTS } from '@/constants/spaces';
@@ -49,6 +50,21 @@ const ClipsPage: React.FC = () => {
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
   const [expandedClips, setExpandedClips] = useState<Set<string>>(new Set());
   const [editContent, setEditContent] = useState<string>('');
+
+  // 添加图片预览状态管理
+  const [imagePreviewStates, setImagePreviewStates] = useState<Record<string, ImagePreviewState>>({});
+
+  // 添加用于显示大图的状态
+  const [visibleImage, setVisibleImage] = useState<string | null>(null);
+
+  // 修改状态定义
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  // 添加拖动相关状态
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const lastPosition = useRef(position);
 
   // 4. 计算属性 hooks
   const currentSpace = useMemo(() => 
@@ -120,40 +136,66 @@ const ClipsPage: React.FC = () => {
     }
   };
 
-  const handleDownload = async (clip: Clip) => {
+  // 修改下载和预览处理函数
+  const handleDownload = async (clip: Clip, type: 'download' | 'preview' = 'download') => {
     if (!spaceId || !clip.filePath) {
       message.error('无效的文件');
-      return;
+      return null;
     }
 
     try {
+      if (type === 'preview') {
+        // 更新加载状态
+        setImagePreviewStates(prev => ({
+          ...prev,
+          [clip.clipId]: {
+            loading: true,
+            error: false,
+            url: null
+          }
+        }));
+      }
+
       const blob = await downloadClipFromSpace(spaceId, clip.clipId);
-      
-      // 生成随机文件名并保留原始扩展名
-      const originalFileName = clip.filePath.split('/').pop() || '';
-      const fileExt = originalFileName.includes('.') 
-        ? `.${originalFileName.split('.').pop()}`
-        : '';
-      const randomName = `clip-${Math.random().toString(36).substring(2, 10)}${fileExt}`;
-      
-      // 创建下载链接
       const url = window.URL.createObjectURL(blob);
+
+      if (type === 'preview') {
+        setImagePreviewStates(prev => ({
+          ...prev,
+          [clip.clipId]: {
+            loading: false,
+            error: false,
+            url
+          }
+        }));
+        return url;
+      }
+
+      // 下载逻辑
+      const fileName = extractFileName(clip.filePath);
       const a = document.createElement('a');
       a.href = url;
-      a.download = randomName;
-      
-      // 触发下载
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
-      
-      // 清理
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+      window.URL.revokeObjectURL(url);
       message.success('下载成功');
+      return null;
     } catch (error: any) {
-      console.error('下载失败:', error);
-      message.error(error.message || '下载失败');
+      console.error(`${type === 'download' ? '下载' : '预览'}失败:`, error);
+      if (type === 'preview') {
+        setImagePreviewStates(prev => ({
+          ...prev,
+          [clip.clipId]: {
+            loading: false,
+            error: true,
+            url: null
+          }
+        }));
+      }
+      message.error(error.message || `${type === 'download' ? '下载' : '预览'}失败`);
+      return null;
     }
   };
 
@@ -235,13 +277,35 @@ const ClipsPage: React.FC = () => {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !spaceId) return;
+
+    // 生成随机文件名并保留原始扩展名
+    const fileExt = file.name.includes('.') 
+      ? `.${file.name.split('.').pop()}`
+      : '';
+    const randomName = `clip-${Math.random().toString(36).substring(2, 10)}${fileExt}`;
+
+    // 创建新的 File 对象，使用随机生成的文件名
+    const renamedFile = new File([file], randomName, { type: file.type });
+
     const data: UploadClipRequest = {
-      file,
+      file: renamedFile,
       contentType: file.type,
       spaceId: spaceId
     };
     handleUpload(data);
   };
+
+  // 添加文件名提取工具函数
+  function extractFileName(filePath: string): string {
+    // 使用 split 方法将路径按路径分隔符分割成数组
+    const parts = filePath.split(/[\\/]/);
+    
+    // 取数组的最后一个元素，即文件名
+    const fileName = parts.pop();
+    
+    // 返回文件名
+    return fileName || '';
+  }
 
   // 修改剪贴板操作按钮渲染
   const renderClipActions = (clip: Clip) => (
@@ -276,7 +340,7 @@ const ClipsPage: React.FC = () => {
         </Tooltip>
       )}
       
-      {/* 只有非游客且有权限的用户才能看到删除按钮 */}
+      {/* 只有非游客且有权限的用户才能看见删除按钮 */}
       {canManageClip(clip) && (
         <Tooltip title="删除">
           <Button 
@@ -344,6 +408,183 @@ const ClipsPage: React.FC = () => {
     </div>
   );
 
+  // 修改渲染剪贴板内容的部分
+  const renderClipContent = (clip: Clip) => {
+    if (clip.filePath) {
+      const fileName = decodeURIComponent(extractFileName(clip.filePath));
+      const previewState = imagePreviewStates[clip.clipId] || {
+        loading: false,
+        error: false,
+        url: null
+      };
+
+      return (
+        <div className={styles.fileContent}>
+          <span className={styles.fileName}>{fileName}</span>
+          {clip.contentType.startsWith('image/') && (
+            <div 
+              className={styles.imageContainer}
+              onClick={() => setVisibleImage(previewState.url)}
+            >
+              {previewState.loading && (
+                <div className={styles.imageLoading}>
+                  <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
+                </div>
+              )}
+              
+              {previewState.error && (
+                <div className={styles.imageError}>
+                  <span>图片加载失败</span>
+                  <Button 
+                    type="link" 
+                    icon={<ReloadOutlined />}
+                    className={styles.retryButton}
+                    onClick={() => handleDownload(clip, 'preview')}
+                  >
+                    重试
+                  </Button>
+                </div>
+              )}
+              
+              {!previewState.loading && !previewState.error && previewState.url && (
+                <img 
+                  src={previewState.url}
+                  alt={fileName}
+                  className={`${styles.imagePreview} ${styles.loaded}`}
+                  onError={() => {
+                    cleanupPreviewUrl(clip.clipId);
+                    setImagePreviewStates(prev => ({
+                      ...prev,
+                      [clip.clipId]: {
+                        loading: false,
+                        error: true,
+                        url: null
+                      }
+                    }));
+                  }}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // 判断是否为长文本（超过5行或300个字符）
+    const isLongText = (clip.content?.length ?? 0) > 300 || 
+                      (clip.content?.split('\n').length ?? 0) > 5;
+    const isExpanded = expandedClips.has(clip.clipId);
+
+    return (
+      <>
+        <pre 
+          className={`${styles.content} ${!isExpanded && isLongText ? styles.collapsed : ''}`}
+        >
+          {clip.content}
+        </pre>
+        {isLongText && (
+          <div 
+            className={styles.expandButton}
+            onClick={() => toggleExpand(clip.clipId)}
+          >
+            {isExpanded ? '收起' : '展开全文'}
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // 清理函数
+  const cleanupPreviewUrl = useCallback((clipId: string) => {
+    const state = imagePreviewStates[clipId];
+    if (state?.url) {
+      window.URL.revokeObjectURL(state.url);
+    }
+    setImagePreviewStates(prev => {
+      const newState = { ...prev };
+      delete newState[clipId];
+      return newState;
+    });
+  }, [imagePreviewStates]);
+
+  // 在组件卸载时清理所有预览URL
+  useEffect(() => {
+    return () => {
+      Object.entries(imagePreviewStates).forEach(([clipId, state]) => {
+        if (state.url) {
+          window.URL.revokeObjectURL(state.url);
+        }
+      });
+    };
+  }, [imagePreviewStates]);
+
+  // 在首次渲染时加载图片预览
+  useEffect(() => {
+    sortedClips.forEach(clip => {
+      if (clip.contentType.startsWith('image/') && !imagePreviewStates[clip.clipId]) {
+        handleDownload(clip, 'preview');
+      }
+    });
+  }, [sortedClips]);
+
+  // 添加滚轮缩放处理函数
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    
+    const img = imageRef.current;
+    if (!img) return;
+
+    // 计算新的缩放比例
+    const delta = e.deltaY * -0.001;
+    const newScale = Math.min(Math.max(scale + delta * scale, 0.1), 5);
+    
+    // 获取图片的边界信息
+    const imgRect = img.getBoundingClientRect();
+    
+    // 计算鼠标相对于图片的位置（考虑当前缩放和位置）
+    const mouseX = e.clientX - imgRect.left;
+    const mouseY = e.clientY - imgRect.top;
+    
+    // 计算鼠标在图片上的相对位置（0-1范围）
+    const relativeX = mouseX / imgRect.width;
+    const relativeY = mouseY / imgRect.height;
+    
+    // 计算新位置，保持鼠标指向的图片点不变
+    const newPosition = {
+      x: position.x - (newScale - scale) * img.width * relativeX,
+      y: position.y - (newScale - scale) * img.height * relativeY
+    };
+    
+    setScale(newScale);
+    setPosition(newPosition);
+  };
+
+  // 添加鼠标事件处理函数
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+    lastPosition.current = position;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    
+    setPosition({
+      x: lastPosition.current.x + dx,
+      y: lastPosition.current.y + dy
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
   // 7. 条件渲染
   if (loadingSpaces || isLoadingClips) {
     return (
@@ -366,132 +607,155 @@ const ClipsPage: React.FC = () => {
 
   // 8. 主要渲染
   return (
-    <Card title={renderHeader()}>
-      {/* 新增剪贴板输入框 */}
-      <div className={styles.newClip}>
-        <TextArea
-          value={newContent}
-          onChange={e => setNewContent(e.target.value)}
-          placeholder="输入新的剪贴板内容..."
-          autoSize={{ minRows: 3, maxRows: 6 }}
-        />
-        <div className={styles.actions}>
-          <input
-            type="file"
-            id="fileUpload"
-            style={{ display: 'none' }}
-            onChange={handleFileUpload}
-            accept="image/*,text/*,application/pdf"
+    <div className={styles.container}>
+      <Card 
+        title={renderHeader()} 
+        className={styles.pageCard}
+      >
+        {/* 新增剪贴板输入框 */}
+        <div className={styles.newClip}>
+          <TextArea
+            value={newContent}
+            onChange={e => setNewContent(e.target.value)}
+            placeholder="输入新的剪贴板内容..."
+            autoSize={{ minRows: 3, maxRows: 6 }}
           />
-          <Button 
-            icon={<UploadOutlined />}
-            onClick={() => document.getElementById('fileUpload')?.click()}
-          >
-            上传文件
-          </Button>
-          <Button 
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={handleSaveNew}
-          >
-            保存
-          </Button>
-        </div>
-      </div>
-
-      {/* 剪贴板列表 */}
-      {isLoadingClips ? (
-        <Spin />
-      ) : sortedClips.length === 0 ? (
-        <Empty description="暂无剪贴板内容" />
-      ) : (
-        <div className={styles.clipList}>
-          {sortedClips.map(clip => (
-            <Card 
-              key={clip.clipId}
-              className={styles.clipItem}
-              size="small"
+          <div className={styles.inputActions}>
+            <input
+              type="file"
+              id="fileUpload"
+              style={{ display: 'none' }}
+              onChange={handleFileUpload}
+              accept="image/*,text/*,application/pdf"
+            />
+            <Button 
+              icon={<UploadOutlined />}
+              onClick={() => document.getElementById('fileUpload')?.click()}
             >
-              {/* 头部信息 */}
-              <div className={styles.clipHeader}>
-                <div className={styles.clipInfo}>
-                  <Text type="secondary">
-                    创建于 {dayjs(clip.createdAt).format('YYYY-MM-DD HH:mm')}
-                    {clip.updatedAt !== clip.createdAt && 
-                      `，更新于 ${dayjs(clip.updatedAt).format('YYYY-MM-DD HH:mm')}`}
-                  </Text>
-                  <Text type="secondary">
-                    创建者: {clip.creator?.username || '游客'}
-                  </Text>
-                </div>
-                {renderClipActions(clip)}
-              </div>
-
-              {/* 内容部分 */}
-              <div className={styles.clipContent}>
-                {editingClipId === clip.clipId ? (
-                  <div className={styles.editContent}>
-                    <TextArea
-                      value={editContent}
-                      onChange={e => setEditContent(e.target.value)}
-                      autoSize
-                    />
-                    <Button 
-                      type="primary"
-                      size="small"
-                      onClick={() => handleSaveEdit(clip.clipId)}
-                    >
-                      保存
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    {clip.filePath ? (
-                      // 文件类型显示
-                      <div className={styles.fileContent}>
-                        <FileOutlined />
-                        <span>{clip.filePath.split('/').pop()}</span>
-                        {clip.contentType.startsWith('image/') && (
-                          <img 
-                            src={`/api/v1/nlip/spaces/${spaceId}/clips/${clip.clipId}/file`}
-                            alt="预览图片"
-                            className={styles.imagePreview}
-                          />
-                        )}
-                      </div>
-                    ) : (
-                      // 文本类型显示
-                      <>
-                        <pre className={`${styles.content} ${!expandedClips.has(clip.clipId) && styles.collapsed}`}>
-                          {clip.content}
-                        </pre>
-                        {(clip.content?.length ?? 0) > 300 && (
-                          <Button 
-                            type="link" 
-                            size="small"
-                            onClick={() => toggleExpand(clip.clipId)}
-                          >
-                            {expandedClips.has(clip.clipId) ? '收起' : '展开'}
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </Card>
-          ))}
+              上传文件
+            </Button>
+            <Button 
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={handleSaveNew}
+            >
+              保存
+            </Button>
+          </div>
         </div>
-      )}
 
-      {canManageSpace && showSettings && (
-        <SpaceSettingsModal
-          visible={showSettings}
-          space={currentSpace}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
-    </Card>
+        {/* 剪贴板列表 */}
+        {isLoadingClips ? (
+          <Spin />
+        ) : sortedClips.length === 0 ? (
+          <Empty description="暂无剪贴板内容" />
+        ) : (
+          <div className={styles.clipList}>
+            {sortedClips.map(clip => (
+              <Card 
+                key={clip.clipId}
+                className={styles.clipItem}
+                size="small"
+              >
+                {/* 头部信息 */}
+                <div className={styles.clipHeader}>
+                  <div className={styles.clipInfo}>
+                    <Text type="secondary">
+                      创建于 {dayjs(clip.createdAt).format('YYYY-MM-DD HH:mm')}
+                      {clip.updatedAt !== clip.createdAt && 
+                        `，更新于 ${dayjs(clip.updatedAt).format('YYYY-MM-DD HH:mm')}`}
+                    </Text>
+                    <Text type="secondary">
+                      创建者: {clip.creator?.username || '游客'}
+                    </Text>
+                  </div>
+                  {renderClipActions(clip)}
+                </div>
+
+                {/* 内容部分 */}
+                <div className={styles.clipContent}>
+                  {editingClipId === clip.clipId ? (
+                    <div className={styles.editContent}>
+                      <TextArea
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        autoSize={{ minRows: 3, maxRows: 6 }}
+                      />
+                      <div className={styles.editActions}>
+                        <Button 
+                          onClick={() => setEditingClipId(null)}
+                        >
+                          取消
+                        </Button>
+                        <Button 
+                          type="primary"
+                          icon={<SaveOutlined />}
+                          onClick={() => handleSaveEdit(clip.clipId)}
+                        >
+                          保存
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    renderClipContent(clip)
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {canManageSpace && showSettings && (
+          <SpaceSettingsModal
+            visible={showSettings}
+            space={currentSpace}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+
+        {/* 修改图片放大浮窗 */}
+        <Modal
+          open={!!visibleImage}
+          footer={null}
+          onCancel={() => {
+            setVisibleImage(null);
+            setScale(1);
+            setPosition({ x: 0, y: 0 });
+          }}
+          width="90vw"
+          style={{ 
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            padding: 0,
+          }}
+          centered
+          className={styles.imageModal}
+          closable={true}
+          maskClosable={true}
+        >
+          <div 
+            className={styles.imageModalContent}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+          >
+            <img 
+              ref={imageRef}
+              src={visibleImage || ''} 
+              alt="Preview" 
+              style={{ 
+                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                transformOrigin: '0 0',
+                pointerEvents: 'none', // 防止图片干扰拖动事件
+              }}
+            />
+          </div>
+        </Modal>
+      </Card>
+    </div>
   );
 };
 

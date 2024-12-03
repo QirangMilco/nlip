@@ -53,6 +53,22 @@
 
 .container {
   padding: 24px;
+  background: #f5f5f5;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+.pageCard {
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  width: 800px;
+  max-width: 100%;
+
+  :global(.ant-card-head) {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 16px 24px;
+  }
 }
 
 .header {
@@ -65,6 +81,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 8px;
+  max-width: 100%;
 }
 
 .clipCard {
@@ -78,9 +96,9 @@
 }
 
 .clipContent {
-  min-height: 100px;
-  max-height: 200px;
-  overflow-y: auto;
+  min-height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
   margin-bottom: 12px;
 
   .textContent {
@@ -98,17 +116,34 @@
 
   .fileContent {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 8px;
     padding: 12px;
-    background-color: #f5f5f5;
+    background: #fafafa;
     border-radius: 4px;
+
+    .fileName {
+      color: #595959;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .imageContainer {
+      position: relative;
+      cursor: pointer;
+    }
 
     .imagePreview {
       max-width: 100%;
-      max-height: 200px;
-      object-fit: contain;
-      margin-top: 8px;
+      max-height: 300px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.3s;
+
+      &.loaded {
+        opacity: 1;
+      }
     }
   }
 }
@@ -131,63 +166,162 @@
 
 .newClip {
   margin-bottom: 24px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 
-  .actions {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 12px;
+  :global(.ant-input) {
+    border-radius: 4px;
+    border: 1px solid #e8e8e8;
+
+    &:focus {
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+    }
   }
 }
 
+.inputActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .clipItem {
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
   .clipHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
 
-    .clipInfo {
-      display: flex;
-      gap: 16px;
-    }
+  .clipInfo {
+    display: flex;
+    gap: 16px;
+    color: #8c8c8c;
+    font-size: 12px;
+  }
 
-    .clipActions {
-      display: flex;
-      gap: 8px;
+  .clipActions {
+    display: flex;
+    gap: 4px;
+
+    button {
+      padding: 4px 8px;
+
+      &:hover {
+        background: #f5f5f5;
+      }
     }
   }
 
   .clipContent {
-    .content {
+    padding: 16px 0;
+
+    pre {
       margin: 0;
       white-space: pre-wrap;
-      word-break: break-all;
+      word-wrap: break-word;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+  }
 
-      &.collapsed {
-        max-height: 100px;
-        overflow: hidden;
-        position: relative;
+  .fileContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: #fafafa;
+    border-radius: 4px;
 
-        &::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 40px;
-          background: linear-gradient(transparent, white);
-        }
-      }
+    .fileName {
+      color: #595959;
+      font-size: 14px;
+      font-weight: bold;
     }
 
-    .editContent {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    .imageContainer {
+      position: relative;
+      cursor: pointer;
+    }
 
-      button {
-        align-self: flex-end;
+    .imagePreview {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.3s;
+
+      &.loaded {
+        opacity: 1;
       }
+    }
+  }
+
+  .imageContainer {
+    margin-top: 12px;
+
+    .imagePreview {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.3s;
+
+      &.loaded {
+        opacity: 1;
+      }
+    }
+  }
+
+  .imageLoading,
+  .imageError {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    background: #fafafa;
+    border-radius: 4px;
+    color: #8c8c8c;
+  }
+
+  .expandButton {
+    color: #1890ff;
+    cursor: pointer;
+    padding: 8px 0;
+    text-align: center;
+
+    &:hover {
+      background: #f5f5f5;
+    }
+  }
+
+  .collapsed {
+    max-height: 100px;
+    overflow: hidden;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: linear-gradient(transparent, #fff);
     }
   }
 }
@@ -208,11 +342,107 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  width: 100vw;
-  position: fixed;
-  top: 0;
-  left: 0;
-  background-color: rgba(255, 255, 255, 0.8);
-  z-index: 1000;
+  height: 100%;
+  width: 100%;
+  padding: 40px;
+  position: relative;
+}
+
+.editContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .editActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+  }
+}
+
+.imageContainer {
+  position: relative;
+  min-height: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f5f5f5;
+  border-radius: 4px;
+  margin-top: 8px;
+
+  .imagePreview {
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+
+    &.loaded {
+      opacity: 1;
+    }
+  }
+
+  .imageLoading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .imageError {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #ff4d4f;
+
+    .retryButton {
+      margin-top: 4px;
+    }
+  }
+}
+
+.imageModal {
+  :global {
+    .ant-modal-content {
+      background: rgba(0, 0, 0, 0.85);
+      padding: 0;
+
+      .ant-modal-close {
+        color: #fff;
+        top: 16px;
+        right: 16px;
+        z-index: 1001;
+
+        &:hover {
+          color: #f0f0f0;
+        }
+      }
+
+      .ant-modal-body {
+        padding: 0;
+        overflow: hidden;
+        height: 90vh;
+      }
+    }
+  }
+}
+
+.imageModalContent {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  user-select: none;
+  
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    user-select: none;
+    transition: none;
+  }
 }

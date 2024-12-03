@@ -14,10 +14,26 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"mime/multipart"
 )
 
-// 添加通用的查询语句常量
+// 添加常量定义
 const (
+	// 空间类型
+	PublicSpaceID = "public-space"
+	GuestUserID   = "guest"
+
+	// 错误消息
+	ErrNoPermission     = "没有权限执行此操作"
+	ErrSpaceNotFound    = "空间不存在"
+	ErrClipNotFound     = "剪贴板内容不存在"
+	ErrInvalidRequest   = "无效的请求数据"
+	ErrFileUploadFailed = "文件上传失败"
+)
+
+// 添加 SQL 查询常量
+const (
+	// 基础查询语句
 	selectClipWithCreatorSQL = `
         SELECT 
             c.id, 
@@ -29,34 +45,88 @@ const (
             c.created_at,
             c.updated_at,
             u.id as creator_id,
-            u.username as creator_username
+            CASE WHEN u.id = 'guest' THEN '游客' ELSE u.username END as creator_username
         FROM nlip_clipboard_items c
-        LEFT JOIN nlip_users u ON c.creator_id = u.id
-    `
-
-	selectClipWithSpaceAndCreatorSQL = `
-        SELECT 
-            c.id, 
-            c.clip_id, 
-            c.space_id, 
-            c.content_type, 
-            c.content, 
-            c.file_path, 
-            c.created_at,
-            c.updated_at,
-            s.owner_id as space_owner_id,
-            u.id as creator_id,
-            u.username as creator_username
-        FROM nlip_clipboard_items c
-        JOIN nlip_spaces s ON c.space_id = s.id
         LEFT JOIN nlip_users u ON c.creator_id = u.id
     `
 )
+
+// 添加权限检查辅助函数
+func checkClipPermission(tx *sql.Tx, spaceID, clipID, userID string, isAdmin bool) (string, error) {
+	var creatorID string
+
+	if spaceID == PublicSpaceID {
+		err := tx.QueryRow(`
+			SELECT creator_id 
+			FROM nlip_clipboard_items 
+			WHERE clip_id = ? AND space_id = ?
+		`, clipID, spaceID).Scan(&creatorID)
+
+		if err == sql.ErrNoRows {
+			return "", fiber.NewError(fiber.StatusNotFound, ErrClipNotFound)
+		} else if err != nil {
+			return "", err
+		}
+
+		// 公共空间权限检查
+		if !isAdmin && (userID != creatorID || creatorID == GuestUserID) {
+			return "", fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
+		}
+	} else {
+		// 其他空间权限检查
+		var spaceOwnerID string
+		err := tx.QueryRow("SELECT owner_id FROM nlip_spaces WHERE id = ?", spaceID).Scan(&spaceOwnerID)
+		if err == sql.ErrNoRows {
+			return "", fiber.NewError(fiber.StatusNotFound, ErrSpaceNotFound)
+		} else if err != nil {
+			return "", err
+		}
+
+		if !isAdmin && spaceOwnerID != userID {
+			return "", fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
+		}
+	}
+
+	return creatorID, nil
+}
+
+// 添加文件处理辅助函数
+func handleFileUpload(file *multipart.FileHeader) ([]byte, string, error) {
+	// 检查文件大小
+	if file.Size > config.AppConfig.MaxFileSize {
+		return nil, "", fiber.NewError(fiber.StatusBadRequest, "文件大小超过限制")
+	}
+
+	// 验证文件名和类型
+	if !validator.ValidateFileName(file.Filename) {
+		return nil, "", fiber.NewError(fiber.StatusBadRequest, "文件名不合法")
+	}
+
+	contentType := file.Header.Get("Content-Type")
+	if !validator.ValidateFileType(file.Filename, contentType) {
+		return nil, "", fiber.NewError(fiber.StatusBadRequest, "不支持的文件类型")
+	}
+
+	// 读取文件数据
+	src, err := file.Open()
+	if err != nil {
+		return nil, "", err
+	}
+	defer src.Close()
+
+	data := make([]byte, file.Size)
+	if _, err := src.Read(data); err != nil {
+		return nil, "", err
+	}
+
+	return data, contentType, nil
+}
 
 // scanClip 辅助函数：扫描剪贴板数据
 func scanClip(rows *sql.Rows) (*clip.Clip, error) {
 	var cl clip.Clip
 	var creatorID, creatorUsername sql.NullString
+	var filePath sql.NullString
 
 	err := rows.Scan(
 		&cl.ID,
@@ -64,7 +134,7 @@ func scanClip(rows *sql.Rows) (*clip.Clip, error) {
 		&cl.SpaceID,
 		&cl.ContentType,
 		&cl.Content,
-		&cl.FilePath,
+		&filePath,
 		&cl.CreatedAt,
 		&cl.UpdatedAt,
 		&creatorID,
@@ -73,6 +143,10 @@ func scanClip(rows *sql.Rows) (*clip.Clip, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	if filePath.Valid {
+		cl.FilePath = filePath.String
 	}
 
 	if creatorID.Valid && creatorUsername.Valid {
@@ -119,6 +193,43 @@ func scanClipWithSpaceOwner(row *sql.Row) (*clip.Clip, string, error) {
 	return &cl, spaceOwnerID, nil
 }
 
+// 添加新的扫描函数用于单行结果
+func scanSingleClip(row *sql.Row) (*clip.Clip, error) {
+	var cl clip.Clip
+	var creatorID, creatorUsername sql.NullString
+	var filePath sql.NullString
+
+	err := row.Scan(
+		&cl.ID,
+		&cl.ClipID,
+		&cl.SpaceID,
+		&cl.ContentType,
+		&cl.Content,
+		&filePath,
+		&cl.CreatedAt,
+		&cl.UpdatedAt,
+		&creatorID,
+		&creatorUsername,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if filePath.Valid {
+		cl.FilePath = filePath.String
+	}
+
+	if creatorID.Valid && creatorUsername.Valid {
+		cl.Creator = &clip.Creator{
+			ID:       creatorID.String,
+			Username: creatorUsername.String,
+		}
+	}
+
+	return &cl, nil
+}
+
 // HandleListPublicClips 处理获取公共空间剪贴板列表
 func HandleListPublicClips(c *fiber.Ctx) error {
 	logger.Debug("获取公共空间剪贴板列表")
@@ -161,61 +272,96 @@ func HandleUploadPublicClip(c *fiber.Ctx) error {
 
 	// 处理multipart表单数据
 	if form, err := c.MultipartForm(); err == nil {
+		// 验证creator字段必须为guest
+		creator := form.Value["creator"]
+		if len(creator) == 0 || creator[0] != GuestUserID {
+			return fiber.NewError(fiber.StatusBadRequest, "游客上传必须设置creator为guest")
+		}
+
 		if files := form.File["file"]; len(files) > 0 {
 			file := files[0]
 			logger.Debug("处理公共空间文件上传: %s, 大小: %d bytes", file.Filename, file.Size)
 
-			// 检查文件大小
-			if file.Size > config.AppConfig.MaxFileSize {
-				logger.Warning("文件大小超过限制: %s (%d bytes)", file.Filename, file.Size)
-				return fiber.NewError(fiber.StatusBadRequest, "文件大小超过限制")
-			}
-
-			// 验证文件名和类型
-			if !validator.ValidateFileName(file.Filename) {
-				logger.Warning("文件名不合法: %s", file.Filename)
-				return fiber.NewError(fiber.StatusBadRequest, "文件名不合法")
-			}
-
-			contentType := file.Header.Get("Content-Type")
-			if !validator.ValidateFileType(file.Filename, contentType) {
-				logger.Warning("不支持的文件类型: %s (%s)", file.Filename, contentType)
-				return fiber.NewError(fiber.StatusBadRequest, "不支持的文件类型")
-			}
-
-			// 读取文件数据
-			fileContent, err := file.Open()
+			data, contentType, err := handleFileUpload(file)
 			if err != nil {
-				logger.Error("读取文件失败: %v", err)
-				return fiber.NewError(fiber.StatusInternalServerError, "读取文件失败")
-			}
-			defer fileContent.Close()
-
-			data := make([]byte, file.Size)
-			if _, err := fileContent.Read(data); err != nil {
-				logger.Error("读取文件数据失败: %v", err)
-				return fiber.NewError(fiber.StatusInternalServerError, "读取文件失败")
+				logger.Error("处理文件上传失败: %v", err)
+				return err
 			}
 
-			req.File = data
-			req.FileName = file.Filename
-			req.ContentType = contentType
+			// 生成剪贴板ID
+			fullID, clipID := id.GenerateClipID(PublicSpaceID)
+
+			// 创建剪贴板内容
+			cl := clip.Clip{
+				ID:          fullID,
+				ClipID:      clipID,
+				SpaceID:     PublicSpaceID,
+				ContentType: contentType,
+				Creator: &clip.Creator{
+					ID:       GuestUserID,
+					Username: "游客",
+				},
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+
+			// 保存文件
+			fileName := fmt.Sprintf("%s%s", cl.ClipID, filepath.Ext(file.Filename))
+			filePath, err := storage.SaveFile(data, fileName)
+			if err != nil {
+				logger.Error("保存文件失败: %v", err)
+				return fiber.NewError(fiber.StatusInternalServerError, ErrFileUploadFailed)
+			}
+			cl.FilePath = filePath
+
+			// 插入数据库
+			_, err = config.DB.Exec(`
+				INSERT INTO nlip_clipboard_items 
+				(id, clip_id, space_id, content_type, file_path, creator_id, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`, cl.ID, cl.ClipID, cl.SpaceID, cl.ContentType, cl.FilePath, GuestUserID, cl.CreatedAt, cl.UpdatedAt)
+
+			if err != nil {
+				if cl.FilePath != "" {
+					if err := storage.DeleteFile(cl.FilePath); err != nil {
+						logger.Error("删除失败的上传文件失败: %v", err)
+					}
+				}
+				logger.Error("保存剪贴板内容失败: %v", err)
+				return fiber.NewError(fiber.StatusInternalServerError, "保存剪贴板内容失败")
+			}
+
+			return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+				"code":    fiber.StatusCreated,
+				"message": "上传成功",
+				"data": clip.ClipResponse{
+					Clip: &cl,
+				},
+			})
 		}
 	}
 
-	// 解析其他表单数据
+	// 处理文本内容上传
 	if err := c.BodyParser(&req); err != nil {
-		logger.Warning("解析请求数据失败: %v", err)
-		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
+		return fiber.NewError(fiber.StatusBadRequest, ErrInvalidRequest)
 	}
 
-	// 强制设置为公共空间，并确保是游客上传
-	req.SpaceID = "public-space"
+	// 从表单数据中获取 creator
+	creator := c.FormValue("creator", "")
+	if creator == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "游客上传必须设置creator为guest")
+	}
+	if creator != GuestUserID {
+		return fiber.NewError(fiber.StatusBadRequest, "creator必须为guest")
+	}
+
+	// 强制设置为公共空间
+	req.SpaceID = PublicSpaceID
 
 	// 生成剪贴板ID
 	fullID, clipID := id.GenerateClipID(req.SpaceID)
 
-	// 创建剪贴板内容，明确指定为游客
+	// 创建剪贴板内容
 	cl := clip.Clip{
 		ID:          fullID,
 		ClipID:      clipID,
@@ -223,44 +369,27 @@ func HandleUploadPublicClip(c *fiber.Ctx) error {
 		ContentType: req.ContentType,
 		Content:     req.Content,
 		Creator: &clip.Creator{
-			ID:       "guest",
+			ID:       GuestUserID,
 			Username: "游客",
 		},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	// 如果有文件，保存到存储
-	if req.File != nil {
-		fileName := fmt.Sprintf("%s%s", cl.ClipID, filepath.Ext(req.FileName))
-		filePath, err := storage.SaveFile(req.File, fileName)
-		if err != nil {
-			logger.Error("保存文件失败: %v", err)
-			return fiber.NewError(fiber.StatusInternalServerError, "保存文件失败")
-		}
-		cl.FilePath = filePath
-	}
-
 	// 插入数据库
 	_, err := config.DB.Exec(`
-        INSERT INTO nlip_clipboard_items 
-        (id, clip_id, space_id, content_type, content, file_path, creator_id, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, cl.ID, cl.ClipID, cl.SpaceID, cl.ContentType, cl.Content, cl.FilePath, "guest", cl.CreatedAt, cl.UpdatedAt)
+		INSERT INTO nlip_clipboard_items 
+		(id, clip_id, space_id, content_type, content, creator_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, cl.ID, cl.ClipID, cl.SpaceID, cl.ContentType, cl.Content, GuestUserID, cl.CreatedAt, cl.UpdatedAt)
 
 	if err != nil {
-		if cl.FilePath != "" {
-			if err := storage.DeleteFile(cl.FilePath); err != nil {
-				logger.Error("删除失败的上传文件失败: %v", err)
-			}
-		}
 		logger.Error("保存剪贴板内容失败: %v", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "保存剪贴板内容失败")
 	}
 
-	logger.Info("游客成功上传内容到公共空间")
-	return c.JSON(fiber.Map{
-		"code":    fiber.StatusOK,
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"code":    fiber.StatusCreated,
 		"message": "上传成功",
 		"data": clip.ClipResponse{
 			Clip: &cl,
@@ -344,131 +473,92 @@ func HandleUploadClip(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 	username := c.Locals("username").(string)
 
-	// 处理multipart表单数据
-	if form, err := c.MultipartForm(); err == nil {
+	// 处理文件上传
+	if form, err := c.MultipartForm(); err == nil && form.File != nil {
 		if files := form.File["file"]; len(files) > 0 {
 			file := files[0]
 			logger.Debug("处理文件上传: %s, 大小: %d bytes", file.Filename, file.Size)
 
-			// 检查文件大小
-			if file.Size > config.AppConfig.MaxFileSize {
-				logger.Warning("文件大小超过限制: %s (%d bytes)", file.Filename, file.Size)
-				return fiber.NewError(fiber.StatusBadRequest, "文件大小超过限制")
-			}
-
-			// 验证文件名
-			if !validator.ValidateFileName(file.Filename) {
-				logger.Warning("文件名不合法: %s", file.Filename)
-				return fiber.NewError(fiber.StatusBadRequest, "文件名不合法")
-			}
-
-			// 验证文件类型
-			contentType := file.Header.Get("Content-Type")
-			if !validator.ValidateFileType(file.Filename, contentType) {
-				logger.Warning("不支持的文件类型: %s (%s)", file.Filename, contentType)
-				return fiber.NewError(fiber.StatusBadRequest, "不支持的文件类型")
-			}
-
-			// 读取文件数据
-			fileContent, err := file.Open()
+			data, contentType, err := handleFileUpload(file)
 			if err != nil {
-				logger.Error("读取文件失败: %v", err)
-				return fiber.NewError(fiber.StatusInternalServerError, "读取文件失败")
-			}
-			defer fileContent.Close()
-
-			data := make([]byte, file.Size)
-			if _, err := fileContent.Read(data); err != nil {
-				logger.Error("读取文件数据失败: %v", err)
-				return fiber.NewError(fiber.StatusInternalServerError, "读取文件失败")
+				logger.Error("处理文件上传失败: %v", err)
+				return err
 			}
 
 			req.File = data
 			req.FileName = file.Filename
 			req.ContentType = contentType
-			logger.Debug("文件验证通过: %s", file.Filename)
 		}
 	}
 
 	// 解析其他表单数据
 	if err := c.BodyParser(&req); err != nil {
-		logger.Warning("解析请求数据失败: %v", err)
-		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
+		return fiber.NewError(fiber.StatusBadRequest, ErrInvalidRequest)
 	}
 
-	// 检查空间是否存在
-	var spaceOwnerID string
-	err := config.DB.QueryRow("SELECT owner_id FROM nlip_spaces WHERE id = ?", req.SpaceID).Scan(&spaceOwnerID)
-	if err == sql.ErrNoRows {
-		logger.Warning("空间不存在: %s", req.SpaceID)
-		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
-	} else if err != nil {
-		logger.Error("查询空间失败: %v", err)
-		return fiber.NewError(fiber.StatusInternalServerError, "查询空间失败")
-	}
+	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+		// 检查空间权限
+		if req.SpaceID != PublicSpaceID {
+			_, err := checkClipPermission(tx, req.SpaceID, "", userID, c.Locals("isAdmin").(bool))
+			if err != nil {
+				return err
+			}
+		}
 
-	// 修改权限检查逻辑：允许上传到公共空间
-	isAdmin := c.Locals("isAdmin").(bool)
-	if !isAdmin && spaceOwnerID != userID && req.SpaceID != "public-space" {
-		logger.Warning("用户 %s 尝试上传到无权限的空间 %s", userID, req.SpaceID)
-		return fiber.NewError(fiber.StatusForbidden, "没有权限上传到此空间")
-	}
+		// 生成剪贴板ID
+		fullID, clipID := id.GenerateClipID(req.SpaceID)
 
-	// 生成剪贴板ID
-	fullID, clipID := id.GenerateClipID(req.SpaceID)
+		// 创建剪贴板内容
+		cl := clip.Clip{
+			ID:          fullID,
+			ClipID:      clipID,
+			SpaceID:     req.SpaceID,
+			ContentType: req.ContentType,
+			Content:     req.Content,
+			Creator: &clip.Creator{
+				ID:       userID,
+				Username: username,
+			},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
 
-	// 创建剪贴板内容
-	cl := clip.Clip{
-		ID:          fullID, // 使用完整ID作为主键
-		ClipID:      clipID, // 新增的空间内唯一ID
-		SpaceID:     req.SpaceID,
-		ContentType: req.ContentType,
-		Content:     req.Content,
-		Creator: &clip.Creator{
-			ID:       userID,
-			Username: username,
-		},
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	// 如果有文件，保存到存储
-	if req.File != nil {
-			fileName := fmt.Sprintf("%s%s", cl.ClipID, filepath.Ext(req.FileName)) // 使用clipID而不是完整ID
+		// 处理文件上传
+		if req.File != nil {
+			fileName := fmt.Sprintf("%s%s", cl.ClipID, filepath.Ext(req.FileName))
 			filePath, err := storage.SaveFile(req.File, fileName)
 			if err != nil {
 				logger.Error("保存文件失败: %v", err)
-				return fiber.NewError(fiber.StatusInternalServerError, "保存文件失败")
+				return fiber.NewError(fiber.StatusInternalServerError, ErrFileUploadFailed)
 			}
 			cl.FilePath = filePath
-			logger.Debug("文件已保存: %s", filePath)
-	}
-
-	// 插入数据库
-	_, err = config.DB.Exec(`
-        INSERT INTO nlip_clipboard_items 
-        (id, clip_id, space_id, content_type, content, file_path, creator_id, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, cl.ID, cl.ClipID, cl.SpaceID, cl.ContentType, cl.Content, cl.FilePath, userID, cl.CreatedAt, cl.UpdatedAt)
-
-	if err != nil {
-		// 如果数据库插入失败，删除已上传的文件
-		if cl.FilePath != "" {
-			if err := storage.DeleteFile(cl.FilePath); err != nil {
-				logger.Error("删除失败的上传文件失败: %v", err)
-			}
 		}
-		logger.Error("保存剪贴板内容失败: %v", err)
-		return fiber.NewError(fiber.StatusInternalServerError, "保存剪贴板内容失败")
-	}
 
-	logger.Info("用户 %s 成功上传内容到空间 %s", userID, req.SpaceID)
-	return c.JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "上传成功",
-		"data": clip.ClipResponse{
-			Clip: &cl,
-		},
+		// 插入数据库
+		_, err := tx.Exec(`
+			INSERT INTO nlip_clipboard_items 
+			(id, clip_id, space_id, content_type, content, file_path, creator_id, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, cl.ID, cl.ClipID, cl.SpaceID, cl.ContentType, cl.Content, cl.FilePath, userID, cl.CreatedAt, cl.UpdatedAt)
+
+		if err != nil {
+			if cl.FilePath != "" {
+				if err := storage.DeleteFile(cl.FilePath); err != nil {
+					logger.Error("删除失败的上传文件失败: %v", err)
+				}
+			}
+			logger.Error("保存剪贴板内容失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "保存剪贴板内容失败")
+		}
+
+		logger.Info("用户 %s 成功上传内容到空间 %s", userID, req.SpaceID)
+		return c.JSON(fiber.Map{
+			"code":    fiber.StatusOK,
+			"message": "上传成功",
+			"data": clip.ClipResponse{
+				Clip: &cl,
+			},
+		})
 	})
 }
 
@@ -483,47 +573,45 @@ func HandleListClips(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 	isAdmin := c.Locals("isAdmin").(bool)
 
-	var spaceType, spaceOwnerID string
-	err := config.DB.QueryRow("SELECT type, owner_id FROM nlip_spaces WHERE id = ?", spaceID).Scan(&spaceType, &spaceOwnerID)
-	if err == sql.ErrNoRows {
-		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
-	} else if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "查询空间失败")
-	}
-
-	if spaceType != "public" && !isAdmin && spaceOwnerID != userID {
-		return fiber.NewError(fiber.StatusForbidden, "没有权限访问此空间")
-	}
-
-	// 使用通用查询语句
-	rows, err := config.DB.Query(
-		selectClipWithCreatorSQL+
-			"WHERE c.space_id = ? ORDER BY c.created_at DESC",
-		spaceID,
-	)
-
-	if err != nil {
-		logger.Error("获取剪贴板内容失败: %v", err)
-		return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
-	}
-	defer rows.Close()
-
-	var clips []clip.Clip
-	for rows.Next() {
-		cl, err := scanClip(rows)
-		if err != nil {
-			logger.Error("读取剪贴板数据失败: %v", err)
-			return fiber.NewError(fiber.StatusInternalServerError, "读取剪贴板数据失败")
+	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+		// 权限检查
+		if spaceID != PublicSpaceID {
+			_, err := checkClipPermission(tx, spaceID, "", userID, isAdmin)
+			if err != nil {
+				return err
+			}
 		}
-		clips = append(clips, *cl)
-	}
 
-	return c.JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "获取成功",
-		"data": clip.ListClipsResponse{
-			Clips: clips,
-		},
+		// 使用通用查询语句
+		rows, err := tx.Query(
+			selectClipWithCreatorSQL+
+				"WHERE c.space_id = ? ORDER BY c.created_at DESC",
+			spaceID,
+		)
+
+		if err != nil {
+			logger.Error("获取剪贴板内容失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
+		}
+		defer rows.Close()
+
+		var clips []clip.Clip
+		for rows.Next() {
+			cl, err := scanClip(rows)
+			if err != nil {
+				logger.Error("读取剪贴板数据失败: %v", err)
+				return fiber.NewError(fiber.StatusInternalServerError, "读取剪贴板数据失败")
+			}
+			clips = append(clips, *cl)
+		}
+
+		return c.JSON(fiber.Map{
+			"code":    fiber.StatusOK,
+			"message": "获取成功",
+			"data": clip.ListClipsResponse{
+				Clips: clips,
+			},
+		})
 	})
 }
 
@@ -531,86 +619,56 @@ func HandleListClips(c *fiber.Ctx) error {
 func HandleGetClip(c *fiber.Ctx) error {
 	spaceID := c.Params("spaceId")
 	clipID := c.Params("id")
-
-	// 验证剪贴板是否属于指定空间
-	var cl clip.Clip
-	var spaceType, spaceOwnerID string
-	var creatorID, creatorUsername sql.NullString
-
-	err := config.DB.QueryRow(`
-        SELECT 
-            c.id, 
-            c.clip_id, 
-            c.space_id, 
-            c.content_type, 
-            c.content, 
-            c.file_path, 
-            c.created_at,
-            c.updated_at,
-            s.type as space_type, 
-            s.owner_id as space_owner_id,
-            u.id as creator_id,
-            u.username as creator_username
-        FROM nlip_clipboard_items c
-        JOIN nlip_spaces s ON c.space_id = s.id
-        LEFT JOIN nlip_users u ON c.creator_id = u.id
-        WHERE c.clip_id = ? AND c.space_id = ?
-    `, clipID, spaceID).Scan(
-		&cl.ID,
-		&cl.ClipID,
-		&cl.SpaceID,
-		&cl.ContentType,
-		&cl.Content,
-		&cl.FilePath,
-		&cl.CreatedAt,
-		&cl.UpdatedAt,
-		&spaceType,
-		&spaceOwnerID,
-		&creatorID,
-		&creatorUsername,
-	)
-
-	if err == sql.ErrNoRows {
-		return fiber.NewError(fiber.StatusNotFound, "剪贴板内容不存在")
-	} else if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
-	}
-
-	// 检查访问权限
 	userID := c.Locals("userId").(string)
 	isAdmin := c.Locals("isAdmin").(bool)
+	isDownload := c.Query("download") == "true"
 
-	if spaceType != "public" && !isAdmin && spaceOwnerID != userID {
-		return fiber.NewError(fiber.StatusForbidden, "没有权限访问此内容")
-	}
-
-	// 如果有创建者信息，添加到响应中
-	if creatorID.Valid && creatorUsername.Valid {
-		cl.Creator = &clip.Creator{
-			ID:       creatorID.String,
-			Username: creatorUsername.String,
-		}
-	}
-
-	// 如果是文件类型，需要读取文件内容
-	if cl.FilePath != "" && c.Query("download") == "true" {
-		data, err := storage.GetFile(cl.FilePath)
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, "读取文件失败")
+	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+		// 权限检查
+		if spaceID != PublicSpaceID {
+			_, err := checkClipPermission(tx, spaceID, clipID, userID, isAdmin)
+			if err != nil {
+				return err
+			}
 		}
 
-		// 设置文件下载响应头
-		c.Set("Content-Type", cl.ContentType)
-		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(cl.FilePath)))
-		return c.Send(data)
-	}
+		// 查询剪贴板内容
+		row := tx.QueryRow(
+			selectClipWithCreatorSQL+
+				"WHERE c.clip_id = ? AND c.space_id = ?",
+			clipID, spaceID,
+		)
 
-	return c.JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "获取成功",
-		"data": clip.ClipResponse{
-			Clip: &cl,
-		},
+		cl, err := scanSingleClip(row)
+		if err == sql.ErrNoRows {
+			return fiber.NewError(fiber.StatusNotFound, ErrClipNotFound)
+		} else if err != nil {
+			logger.Error("获取剪贴板内容失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
+		}
+
+		// 处理文件下载请求
+		if cl.FilePath != "" && isDownload {
+			data, err := storage.GetFile(cl.FilePath)
+			if err != nil {
+				logger.Error("读取文件失败: %v", err)
+				return fiber.NewError(fiber.StatusInternalServerError, "读取文件失败")
+			}
+
+			c.Set("Content-Type", cl.ContentType)
+			c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, 
+				filepath.Base(cl.FilePath)))
+			
+			return c.Send(data)
+		}
+
+		return c.JSON(fiber.Map{
+			"code":    fiber.StatusOK,
+			"message": "获取成功",
+			"data": clip.ClipResponse{
+				Clip: cl,
+			},
+		})
 	})
 }
 
@@ -618,60 +676,44 @@ func HandleGetClip(c *fiber.Ctx) error {
 func HandleDeleteClip(c *fiber.Ctx) error {
 	spaceID := c.Params("spaceId")
 	clipID := c.Params("id")
-
-	// 验证剪贴板是否属于指定空间
-	var filePath string
-	var spaceOwnerID string
-	err := config.DB.QueryRow(`
-        SELECT c.file_path, s.owner_id
-        FROM nlip_clipboard_items c
-        JOIN nlip_spaces s ON c.space_id = s.id
-        WHERE c.clip_id = ? AND c.space_id = ?
-    `, clipID, spaceID).Scan(&filePath, &spaceOwnerID)
-
-	if err == sql.ErrNoRows {
-		return fiber.NewError(fiber.StatusNotFound, "剪贴板内容不存在")
-	} else if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "查询剪贴板内容失败")
-	}
-
-	// 检查删除权限
 	userID := c.Locals("userId").(string)
 	isAdmin := c.Locals("isAdmin").(bool)
 
-	if !isAdmin && spaceOwnerID != userID {
-		return fiber.NewError(fiber.StatusForbidden, "没有权限删除此内容")
-	}
+	logger.Debug("处理删除剪贴板内容请求: spaceID=%s, clipID=%s", spaceID, clipID)
 
-	// 开始事务
-	tx, err := config.DB.Begin()
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "开始事务失败")
-	}
-
-	// 删除数据库记录
-	_, err = tx.Exec("DELETE FROM nlip_clipboard_items WHERE clip_id = ? AND space_id = ?", clipID, spaceID)
-	if err != nil {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			logger.Error("事务回滚失败: %v", rollbackErr)
+	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+		// 权限检查
+		_, err := checkClipPermission(tx, spaceID, clipID, userID, isAdmin)
+		if err != nil {
+			return err
 		}
-		return fiber.NewError(fiber.StatusInternalServerError, "删除剪贴板内容失败")
-	}
 
-	// 提交事务
-	if err := tx.Commit(); err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "提交事务失败")
-	}
-
-	// 删除文件（如果存在）
-	if filePath != "" {
-		if err := storage.DeleteFile(filePath); err != nil {
-			// 这里我们只记录错误，不影响API响应
-			fmt.Printf("删除文件失败: %v\n", err)
+		// 获取文件路径
+		var filePath string
+		err = tx.QueryRow("SELECT file_path FROM nlip_clipboard_items WHERE clip_id = ? AND space_id = ?",
+			clipID, spaceID).Scan(&filePath)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "查询剪贴板内容失败")
 		}
-	}
 
-	return c.SendStatus(fiber.StatusNoContent)
+		// 删除数据库记录
+		_, err = tx.Exec("DELETE FROM nlip_clipboard_items WHERE clip_id = ? AND space_id = ?", clipID, spaceID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "删除剪贴板内容失败")
+		}
+
+		// 删除关联文件
+		if filePath != "" {
+			if err := storage.DeleteFile(filePath); err != nil {
+				logger.Error("删除文件失败: %v", err)
+			}
+		}
+
+		logger.Info("用户 %s 删除了剪贴板内容: spaceID=%s, clipID=%s", userID, spaceID, clipID)
+		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{
+			"code": fiber.StatusNoContent,
+		})
+	})
 }
 
 // HandleUpdateClip 处理更新剪贴板内容
@@ -681,96 +723,53 @@ func HandleUpdateClip(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 	isAdmin := c.Locals("isAdmin").(bool)
 
-	logger.Debug("处理更新剪贴板内容请求: spaceID=%s, clipID=%s", spaceID, clipID)
-
-	// 添加请求解析
 	var req clip.UpdateClipRequest
 	if err := c.BodyParser(&req); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
+		return fiber.NewError(fiber.StatusBadRequest, ErrInvalidRequest)
 	}
 
-	// 使用事务进行更新
-	err := db.WithTransaction(config.DB, func(tx *sql.Tx) error {
-		// 验证剪贴板是否存在并获取当前信息
-		_, spaceOwnerID, err := scanClipWithSpaceOwner(tx.QueryRow(
-			selectClipWithSpaceAndCreatorSQL+
-				"WHERE c.clip_id = ? AND c.space_id = ?",
-			clipID, spaceID,
-		))
-
-		if err == sql.ErrNoRows {
-			logger.Warning("尝试更新不存在的剪贴板内容: spaceID=%s, clipID=%s", spaceID, clipID)
-			return fiber.NewError(fiber.StatusNotFound, "剪贴板内容不存在")
-		} else if err != nil {
-			logger.Error("获取剪贴板内容失败: %v", err)
-			return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
-		}
-
-		// 检查权限
-		if !isAdmin && spaceOwnerID != userID {
-			logger.Warning("用户 %s 尝试更新无权限的剪贴板内容: spaceID=%s, clipID=%s", userID, spaceID, clipID)
-			return fiber.NewError(fiber.StatusForbidden, "没有权限修改此内容")
+	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+		// 权限检查
+		_, err := checkClipPermission(tx, spaceID, clipID, userID, isAdmin)
+		if err != nil {
+			return err
 		}
 
 		// 更新内容
-		_, err = db.ExecTx(tx, `
+		result, err := tx.Exec(`
 			UPDATE nlip_clipboard_items 
-			SET content = ?
+			SET content = ?, updated_at = ?
 			WHERE clip_id = ? AND space_id = ?
-		`, req.Content, clipID, spaceID)
+		`, req.Content, time.Now(), clipID, spaceID)
 
 		if err != nil {
-			logger.Error("更新剪贴板内容失败: %v", err)
 			return fiber.NewError(fiber.StatusInternalServerError, "更新剪贴板内容失败")
 		}
 
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	// 重新获取更新后的内容
-	var cl clip.Clip
-	var creatorID, creatorUsername sql.NullString
-
-	err = config.DB.QueryRow(
-		selectClipWithCreatorSQL+
-			"WHERE c.clip_id = ? AND c.space_id = ?",
-		clipID, spaceID,
-	).Scan(
-		&cl.ID,
-		&cl.ClipID,
-		&cl.SpaceID,
-		&cl.ContentType,
-		&cl.Content,
-		&cl.FilePath,
-		&cl.CreatedAt,
-		&cl.UpdatedAt,
-		&creatorID,
-		&creatorUsername,
-	)
-
-	if err != nil {
-		logger.Error("获取更新后的剪贴板内容失败: %v", err)
-		return fiber.NewError(fiber.StatusInternalServerError, "获取更新后的内容失败")
-	}
-
-	// 添加创建者信息
-	if creatorID.Valid && creatorUsername.Valid {
-		cl.Creator = &clip.Creator{
-			ID:       creatorID.String,
-			Username: creatorUsername.String,
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			return fiber.NewError(fiber.StatusNotFound, ErrClipNotFound)
 		}
-	}
 
-	logger.Info("用户 %s 更新了剪贴板内容: spaceID=%s, clipID=%s", userID, spaceID, clipID)
-	return c.JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "更新成功",
-		"data": clip.ClipResponse{
-			Clip: &cl,
-		},
+		// 查询更新后的完整剪贴板内容
+		row := tx.QueryRow(
+			selectClipWithCreatorSQL+
+				"WHERE c.clip_id = ? AND c.space_id = ?",
+			clipID, spaceID,
+		)
+
+		cl, err := scanSingleClip(row)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "获取更新后的剪贴板内容失败")
+		}
+
+		logger.Info("用户 %s 更新了剪贴板内容: spaceID=%s, clipID=%s", userID, spaceID, clipID)
+		return c.JSON(fiber.Map{
+			"code":    fiber.StatusOK,
+			"message": "更新成功",
+			"data": clip.ClipResponse{
+				Clip: cl,
+			},
+		})
 	})
 }

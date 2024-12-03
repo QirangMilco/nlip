@@ -93,3 +93,9 @@ export interface UpdateSpaceRequest {
 export interface UpdateClipRequest {
   content: string;
 } 
+
+export interface ImagePreviewState {
+  loading: boolean;
+  error: boolean;
+  url: string | null;
+}
