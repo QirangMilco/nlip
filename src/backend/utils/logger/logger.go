@@ -166,4 +166,4 @@ func Fatal(format string, v ...interface{}) {
     timeStr := time.Now().Format(logTimeFormat)
     errorLogger.Printf("%s %s FATAL: %s", timeStr, getCallerInfo(), msg)
     os.Exit(1)
-} 
+}

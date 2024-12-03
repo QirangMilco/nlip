@@ -13,8 +13,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"mime/multipart"
+
+	"nlip/tasks/cleaner"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 // 添加常量定义
@@ -125,7 +128,7 @@ func handleFileUpload(file *multipart.FileHeader) ([]byte, string, error) {
 // scanClip 辅助函数：扫描剪贴板数据
 func scanClip(rows *sql.Rows) (*clip.Clip, error) {
 	var cl clip.Clip
-	var creatorID, creatorUsername sql.NullString
+	var creatorID, creatorUsername, content sql.NullString
 	var filePath sql.NullString
 
 	err := rows.Scan(
@@ -133,7 +136,7 @@ func scanClip(rows *sql.Rows) (*clip.Clip, error) {
 		&cl.ClipID,
 		&cl.SpaceID,
 		&cl.ContentType,
-		&cl.Content,
+		&content,
 		&filePath,
 		&cl.CreatedAt,
 		&cl.UpdatedAt,
@@ -143,6 +146,10 @@ func scanClip(rows *sql.Rows) (*clip.Clip, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	if content.Valid {
+		cl.Content = content.String
 	}
 
 	if filePath.Valid {
@@ -399,10 +406,12 @@ func HandleUploadPublicClip(c *fiber.Ctx) error {
 
 // HandleGetPublicClip 获取公共空间的单个剪贴板内容
 func HandleGetPublicClip(c *fiber.Ctx) error {
+	logger.Debug("开始处理获取公共空间的单个剪贴板内容请求")
+
 	clipID := c.Params("id")
 
 	var cl clip.Clip
-	var creatorID, creatorUsername sql.NullString
+	var creatorID, creatorUsername, content sql.NullString
 
 	err := config.DB.QueryRow(`
         SELECT 
@@ -424,7 +433,7 @@ func HandleGetPublicClip(c *fiber.Ctx) error {
 		&cl.ClipID,
 		&cl.SpaceID,
 		&cl.ContentType,
-		&cl.Content,
+		&content,
 		&cl.FilePath,
 		&cl.CreatedAt,
 		&cl.UpdatedAt,
@@ -433,9 +442,15 @@ func HandleGetPublicClip(c *fiber.Ctx) error {
 	)
 
 	if err == sql.ErrNoRows {
+		logger.Error("剪贴板内容不存在: clipID=%s", clipID)
 		return fiber.NewError(fiber.StatusNotFound, "剪贴板内容不存在")
 	} else if err != nil {
+		logger.Error("获取剪贴板内容失败: %v", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
+	}
+
+	if content.Valid {
+		cl.Content = content.String
 	}
 
 	// 设置创建者信息
@@ -450,14 +465,17 @@ func HandleGetPublicClip(c *fiber.Ctx) error {
 	if cl.FilePath != "" && c.Query("download") == "true" {
 		data, err := storage.GetFile(cl.FilePath)
 		if err != nil {
+			logger.Error("读取文件失败: %v", err)
 			return fiber.NewError(fiber.StatusInternalServerError, "读取文件失败")
 		}
 
 		c.Set("Content-Type", cl.ContentType)
 		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(cl.FilePath)))
+		logger.Info("成功下载文件: clipID=%s", clipID)
 		return c.Send(data)
 	}
 
+	logger.Info("成功获取剪贴板内容: clipID=%s", clipID)
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "获取成功",
@@ -496,7 +514,10 @@ func HandleUploadClip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, ErrInvalidRequest)
 	}
 
-	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+	var uploadedClip *clip.Clip 
+
+	// 先完成上传事务
+	err := db.WithTransaction(config.DB, func(tx *sql.Tx) error {
 		// 检查空间权限
 		if req.SpaceID != PublicSpaceID {
 			_, err := checkClipPermission(tx, req.SpaceID, "", userID, c.Locals("isAdmin").(bool))
@@ -551,14 +572,44 @@ func HandleUploadClip(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, "保存剪贴板内容失败")
 		}
 
-		logger.Info("用户 %s 成功上传内容到空间 %s", userID, req.SpaceID)
-		return c.JSON(fiber.Map{
-			"code":    fiber.StatusOK,
-			"message": "上传成功",
-			"data": clip.ClipResponse{
-				Clip: &cl,
-			},
-		})
+		uploadedClip = &cl 
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// 创建一个 channel 用于等待清理操作完成
+	cleanupDone := make(chan error)
+
+	// 执行清理操作
+	go func() {
+		// 添加延迟，确保上传事务完全提交
+		time.Sleep(100 * time.Millisecond)
+		
+		err := cleaner.CleanSpaceOverflow(req.SpaceID)
+		if err != nil {
+			logger.Error("清理空间超量内容失败: %v", err)
+			cleanupDone <- err
+			return
+		}
+		cleanupDone <- nil
+	}()
+
+	// 等待清理操作完成
+	if cleanupErr := <-cleanupDone; cleanupErr != nil {
+		// 如果清理失败，记录日志但仍然返回上传成功
+		logger.Error("清理空间超量内容失败，但上传已成功: %v", cleanupErr)
+	}
+
+	logger.Info("用户 %s 成功上传内容到空间 %s，清理操作已完成", userID, req.SpaceID)
+	return c.JSON(fiber.Map{
+		"code":    fiber.StatusOK,
+		"message": "上传成功",
+		"data": clip.ClipResponse{
+			Clip: uploadedClip,
+		},
 	})
 }
 
@@ -656,9 +707,9 @@ func HandleGetClip(c *fiber.Ctx) error {
 			}
 
 			c.Set("Content-Type", cl.ContentType)
-			c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, 
+			c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`,
 				filepath.Base(cl.FilePath)))
-			
+
 			return c.Send(data)
 		}
 

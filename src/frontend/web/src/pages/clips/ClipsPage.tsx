@@ -156,7 +156,11 @@ const ClipsPage: React.FC = () => {
         }));
       }
 
-      const blob = await downloadClipFromSpace(spaceId, clip.clipId);
+      // 对于预览操作，使用不同的 API 路径
+      const blob = type === 'preview' && isGuest
+        ? await downloadClipFromSpace(SPACE_CONSTANTS.PUBLIC_SPACE_ID, clip.clipId)
+        : await downloadClipFromSpace(spaceId, clip.clipId);
+
       const url = window.URL.createObjectURL(blob);
 
       if (type === 'preview') {

@@ -34,24 +34,27 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
 ## Features
 
 ### Core Features
-- Multi-platform support (Web, Browser Extension, Mobile App)
-- Text and file sharing
-- Space-based content organization and management
-- Real-time synchronization
-- Space permission management
-- **Guest Uploads in Public Spaces**: Allow unauthenticated users to upload content to public spaces
+- **Multi-platform Support**: Web, Browser Extension, Mobile App
+- **Content Sharing**: Seamless text and file sharing
+- **Space Management**: Space-based content organization and permission management
+- **Real-time Sync**: Real-time updates across all platforms
+- **Guest Features**
+  - Guest uploads in public spaces
+  - Guest content preview support
+- **Smart Management**: Automatic expired content cleanup and overflow management
 
 ### Security Features
-- User authentication and authorization
-- Rate limiting
-- File type filtering
-- Content expiration management
-- Space-level access control
+- **Authentication**: JWT-based user authentication
+- **Access Control**: Fine-grained space-level permission management
+- **Protection**
+  - Rate limiting
+  - File type filtering
+  - Content expiration mechanism
 
-### Additional Features
+### User Experience
 - Responsive design
 - Offline support
-- Multi-language support
+- Multi-language interface
 - Dark mode
 
 ## Tech Stack
@@ -82,8 +85,8 @@ For detailed API documentation, see [API Documentation](docs/api/api.md)
 - JWT authentication
 - Real-time WebSocket notifications
 - Rate limiting
-- Detailed error handling
-- Version control
+- Standardized error handling
+- API version control
 - Debug mode support
 
 ### API Example
