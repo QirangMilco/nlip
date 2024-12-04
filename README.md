@@ -179,17 +179,18 @@ nlip/
 │   │   ├── routes/       # Route definitions
 │   │   ├── utils/        # Utilities
 │   │   └── main.go       # Entry point
-│   └── frontend/
-│       ├── web/          # React web app
-│       │   ├── src/
-│       │   │   ├── api/        # API clients
-│       │   │   ├── components/ # React components
-│       │   │   ├── hooks/      # Custom hooks
-│       │   │   ├── pages/      # Page components
-│       │   │   ├── store/      # Redux store
-│       │   │   └── utils/      # Utilities
-│       ├── extension/    # Chrome extension
-│       └── app/          # Flutter mobile app
+│   └── frontend/         # Frontend application
+│       └── src/          # Source code
+│           ├── api/      # API clients
+│           ├── components/# React components
+│           ├── config/   # Configuration files
+│           ├── constants/# Constants
+│           ├── hooks/    # Custom hooks
+│           ├── pages/    # Page components
+│           ├── routes/   # Route configurations
+│           ├── store/    # State management
+│           ├── styles/   # Style files
+│           └── types/    # TypeScript definitions
 ├── docs/                 # Documentation
 └── scripts/             # Build scripts
 ```

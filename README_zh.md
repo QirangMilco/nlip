@@ -179,17 +179,18 @@ nlip/
 │   │   ├── routes/       # 路由定义
 │   │   ├── utils/        # 工具函数
 │   │   └── main.go       # 入口文件
-│   └── frontend/
-│       ├── web/          # React Web 应用
-│       │   ├── src/
-│       │   │   ├── api/        # API 客户端
-│       │   │   ├── components/ # React 组件
-│       │   │   ├── hooks/      # 自定义 Hooks
-│       │   │   ├── pages/      # 页面组件
-│       │   │   ├── store/      # Redux 存储
-│       │   │   └── utils/      # 工具函数
-│       ├── extension/    # Chrome 插件
-│       └── app/          # Flutter 移动应用
+│   └── frontend/         # 前端应用
+│       └── src/          # 源代码
+│           ├── api/      # API 客户端
+│           ├── components/# React 组件
+│           ├── config/   # 配置文件
+│           ├── constants/# 常量定义
+│           ├── hooks/    # 自定义 Hooks
+│           ├── pages/    # 页面组件
+│           ├── routes/   # 路由配置
+│           ├── store/    # 状态管理
+│           ├── styles/   # 样式文件
+│           └── types/    # 类型定义
 ├── docs/                 # 文档
 └── scripts/             # 构建脚本
 ```
