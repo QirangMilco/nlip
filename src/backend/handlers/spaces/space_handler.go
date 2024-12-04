@@ -190,15 +190,26 @@ func HandleUpdateSpace(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusForbidden, "没有权限修改此空间")
 	}
 
-	// 更新字段
+	// 获取服务器设置
+	serverSettings := config.AppConfig.Space
+
+	// 更新字段并检查是否超过服务器设置
 	if req.Name != "" {
 		s.Name = req.Name
 	}
 	if req.MaxItems > 0 {
-		s.MaxItems = req.MaxItems
+		if req.MaxItems > serverSettings.MaxItemsLimit {
+			s.MaxItems = serverSettings.MaxItemsLimit
+		} else {
+			s.MaxItems = req.MaxItems
+		}
 	}
 	if req.RetentionDays > 0 {
-		s.RetentionDays = req.RetentionDays
+		if req.RetentionDays > serverSettings.MaxRetentionDaysLimit {
+			s.RetentionDays = serverSettings.MaxRetentionDaysLimit
+		} else {
+			s.RetentionDays = req.RetentionDays
+		}
 	}
 
 	// 更新数据库

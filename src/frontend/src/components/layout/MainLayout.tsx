@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Layout, Menu, Avatar, Dropdown, MenuProps, Spin, Button } from 'antd';
+import { Layout, Avatar, Dropdown, MenuProps, Spin } from 'antd';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {

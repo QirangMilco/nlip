@@ -5,13 +5,15 @@ import { UploadClipRequest } from '@/store/types';
 
 interface ClipUploadProps {
   onUpload: (data: UploadClipRequest) => Promise<void>;
+  spaceId: string;
 }
 
-const ClipUpload: React.FC<ClipUploadProps> = ({ onUpload }) => {
+const ClipUpload: React.FC<ClipUploadProps> = ({ onUpload, spaceId }) => {
   const handleUpload = async (file: File) => {
     const data: UploadClipRequest = {
       file,
       contentType: file.type,
+      spaceId,
     };
     await onUpload(data);
   };

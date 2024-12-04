@@ -25,6 +25,12 @@ type Config struct {
         AllowList []string `json:"allow_list"`
         DenyList  []string `json:"deny_list"`
     } `json:"file_types"`
+    Space struct {
+        DefaultMaxItems          int `json:"default_max_items"`      // 空间默认最大条目数
+        DefaultRetentionDays    int `json:"default_retention_days"` // 空间默认保留天数
+        MaxItemsLimit          int `json:"max_items_limit"`        // 允许设置的空间最大条目数上限
+        MaxRetentionDaysLimit  int `json:"max_retention_days_limit"` // 允许设置的空间保留天数上限
+    } `json:"space"`
 }
 
 var (
@@ -77,6 +83,19 @@ func LoadConfig() {
     AppConfig.FileTypes.AllowList = defaultAllowedExtensions
     AppConfig.FileTypes.DenyList = []string{}
 
+    // 设置空间相关默认配置
+    AppConfig.Space = struct {
+        DefaultMaxItems         int `json:"default_max_items"`
+        DefaultRetentionDays    int `json:"default_retention_days"`
+        MaxItemsLimit          int `json:"max_items_limit"`
+        MaxRetentionDaysLimit  int `json:"max_retention_days_limit"`
+    }{
+        DefaultMaxItems:         20,    // 默认最大条目数
+        DefaultRetentionDays:    7,     // 默认保留7天
+        MaxItemsLimit:          100,   // 最大允许100条
+        MaxRetentionDaysLimit:  30,    // 最大允许保留30天
+    }
+
     // 从配置文件加载自定义文件类型设置
     if configFile := getEnv("CONFIG_FILE", "config.dev.json"); configFile != "" {
         if data, err := os.ReadFile(configFile); err == nil {
@@ -96,6 +115,54 @@ func LoadConfig() {
                 AppConfig.FileTypes.DenyList = fileConfig.FileTypes.DenyList
             }
         }
+    }
+
+    // 从配置文件加载自定义空间设置
+    if configFile := getEnv("CONFIG_FILE", "config.dev.json"); configFile != "" {
+        if data, err := os.ReadFile(configFile); err == nil {
+            var spaceConfig struct {
+                Space struct {
+                    DefaultMaxItems         int `json:"default_max_items"`
+                    DefaultRetentionDays    int `json:"default_retention_days"`
+                    MaxItemsLimit          int `json:"max_items_limit"`
+                    MaxRetentionDaysLimit  int `json:"max_retention_days_limit"`
+                } `json:"space"`
+            }
+            
+            if err := json.Unmarshal(data, &spaceConfig); err == nil {
+                // 先更新上限值
+                if spaceConfig.Space.MaxItemsLimit > 0 {
+                    AppConfig.Space.MaxItemsLimit = spaceConfig.Space.MaxItemsLimit
+                }
+                if spaceConfig.Space.MaxRetentionDaysLimit > 0 {
+                    AppConfig.Space.MaxRetentionDaysLimit = spaceConfig.Space.MaxRetentionDaysLimit
+                }
+
+                // 更新默认值，确保不超过上限
+                if spaceConfig.Space.DefaultMaxItems > 0 {
+                    if spaceConfig.Space.DefaultMaxItems > AppConfig.Space.MaxItemsLimit {
+                        AppConfig.Space.DefaultMaxItems = AppConfig.Space.MaxItemsLimit
+                    } else {
+                        AppConfig.Space.DefaultMaxItems = spaceConfig.Space.DefaultMaxItems
+                    }
+                }
+                if spaceConfig.Space.DefaultRetentionDays > 0 {
+                    if spaceConfig.Space.DefaultRetentionDays > AppConfig.Space.MaxRetentionDaysLimit {
+                        AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
+                    } else {
+                        AppConfig.Space.DefaultRetentionDays = spaceConfig.Space.DefaultRetentionDays
+                    }
+                }
+            }
+        }
+    }
+
+    // 最后确保默认值不超过上限
+    if AppConfig.Space.DefaultMaxItems > AppConfig.Space.MaxItemsLimit {
+        AppConfig.Space.DefaultMaxItems = AppConfig.Space.MaxItemsLimit
+    }
+    if AppConfig.Space.DefaultRetentionDays > AppConfig.Space.MaxRetentionDaysLimit {
+        AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
     }
 
     // 规范化文件扩展名格式
@@ -201,6 +268,32 @@ func UpdateConfig(updates map[string]interface{}) error {
         }
         if denyList, ok := fileTypes["deny_list"].([]string); ok {
             AppConfig.FileTypes.DenyList = denyList
+        }
+    }
+
+    if spaceSettings, ok := updates["space_defaults"].(map[string]interface{}); ok {
+        // 先处理上限值的更新
+        if maxItemsLimit, ok := spaceSettings["max_items_limit"].(int); ok {
+            AppConfig.Space.MaxItemsLimit = maxItemsLimit
+        }
+        if maxRetentionDaysLimit, ok := spaceSettings["max_retention_days_limit"].(int); ok {
+            AppConfig.Space.MaxRetentionDaysLimit = maxRetentionDaysLimit
+        }
+
+        // 再处理默认值的更新，确保不超过上限
+        if maxItems, ok := spaceSettings["max_items"].(int); ok {
+            if maxItems <= AppConfig.Space.MaxItemsLimit {
+                AppConfig.Space.DefaultMaxItems = maxItems
+            } else {
+                AppConfig.Space.DefaultMaxItems = AppConfig.Space.MaxItemsLimit
+            }
+        }
+        if retentionDays, ok := spaceSettings["retention_days"].(int); ok {
+            if retentionDays <= AppConfig.Space.MaxRetentionDaysLimit {
+                AppConfig.Space.DefaultRetentionDays = retentionDays
+            } else {
+                AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
+            }
         }
     }
 

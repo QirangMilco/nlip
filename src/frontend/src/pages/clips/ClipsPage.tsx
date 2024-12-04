@@ -514,7 +514,7 @@ const ClipsPage: React.FC = () => {
   // 在组件卸载时清理所有预览URL
   useEffect(() => {
     return () => {
-      Object.entries(imagePreviewStates).forEach(([clipId, state]) => {
+      Object.entries(imagePreviewStates).forEach(([_, state]) => {
         if (state.url) {
           window.URL.revokeObjectURL(state.url);
         }

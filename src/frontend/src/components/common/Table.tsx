@@ -1,4 +1,3 @@
-import React from 'react';
 import { Table as AntTable } from 'antd';
 import type { TableProps } from 'antd';
 import styles from './Table.module.scss';

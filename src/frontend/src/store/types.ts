@@ -99,3 +99,25 @@ export interface ImagePreviewState {
   error: boolean;
   url: string | null;
 }
+
+export interface SpaceSettings {
+  default_max_items: number;
+  default_retention_days: number;
+  max_items_limit: number;
+  max_retention_days_limit: number;
+}
+
+// 服务器设置类型定义
+export interface ServerSettings {
+    file_types: {
+        allow_list: string[];
+        deny_list: string[];
+    };
+    upload: {
+        max_size: number;
+    };
+    space: SpaceSettings;
+    security: {
+        token_expiry: string;
+    };
+}

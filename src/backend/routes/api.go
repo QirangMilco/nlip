@@ -17,10 +17,7 @@ import (
 	"github.com/gofiber/websocket/v2"
 )
 
-func SetupRoutes(app *fiber.App) {
-	// API路由组
-	api := app.Group("/api/v1/nlip")
-
+func SetupRoutes(api fiber.Router) {
 	// 1. 完全公开的路由 - 不需要认证
 	api.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -33,7 +30,7 @@ func SetupRoutes(app *fiber.App) {
 		})
 	})
 
-	// 添加公共空间的路由 - 不需要认证
+	// 公共空间路由
 	publicSpaceRoutes := api.Group("/spaces/public-space")
 	publicSpaceRoutes.Get("/clips/list", clips.HandleListPublicClips)
 	publicSpaceRoutes.Post("/clips/guest-upload",
@@ -98,7 +95,7 @@ func SetupRoutes(app *fiber.App) {
 	adminRoutes.Get("/settings", admin.HandleGetSettings)
 	adminRoutes.Put("/settings", admin.HandleUpdateSettings)
 
-	// 4. 建议添加版本控制中间件
+	// 添加版本控制中间件
 	api.Use(func(c *fiber.Ctx) error {
 		c.Set("API-Version", "1.0.0")
 		return c.Next()

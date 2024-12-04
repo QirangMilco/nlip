@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, message } from 'antd';
 import { Space } from '@/store/types';
 import { updateSpace } from '@/api/spaces';
+import { getSettings } from '@/api/admin';
 
 interface SpaceSettingsModalProps {
   visible: boolean;
@@ -15,9 +16,11 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
   onClose,
 }) => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = useState(false);
+  const [maxItemsLimit, setMaxItemsLimit] = useState<number>(100);
+  const [maxRetentionDaysLimit, setMaxRetentionDaysLimit] = useState<number>(30);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible && space) {
       form.setFieldsValue({
         name: space.name,
@@ -26,6 +29,20 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
       });
     }
   }, [visible, space, form]);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settings = await getSettings();
+        setMaxItemsLimit(settings.max_items_limit);
+        setMaxRetentionDaysLimit(settings.max_retention_days_limit);
+      } catch (error) {
+        message.error('获取设置失败');
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   const handleSubmit = async () => {
     try {
@@ -62,19 +79,31 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
         </Form.Item>
 
         <Form.Item
-          label="最大条目数"
+          label={`最大条目数 (1-${maxItemsLimit})`}
           name="maxItems"
-          rules={[{ required: true, message: '请输入最大条目数' }]}
+          rules={[
+            { required: true, message: '请输入最大条目数' },
+          ]}
         >
-          <InputNumber min={1} max={1000} style={{ width: '100%' }} />
+          <InputNumber
+            min={1}
+            max={maxItemsLimit}
+            style={{ width: '100%' }}
+          />
         </Form.Item>
 
         <Form.Item
-          label="保留天数"
+          label={`保留天数 (1-${maxRetentionDaysLimit})`}
           name="retentionDays"
-          rules={[{ required: true, message: '请输入保留天数' }]}
+          rules={[
+            { required: true, message: '请输入保留天数' },
+          ]}
         >
-          <InputNumber min={1} max={365} style={{ width: '100%' }} />
+          <InputNumber
+            min={1}
+            max={maxRetentionDaysLimit}
+            style={{ width: '100%' }}
+          />
         </Form.Item>
       </Form>
     </Modal>

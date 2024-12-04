@@ -11,29 +11,22 @@ interface ConfirmDialogProps {
   type?: 'info' | 'success' | 'warning' | 'error';
 }
 
-const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
-  title,
-  content,
-  onConfirm,
-  okText = '确定',
-  cancelText = '取消',
-  type = 'warning'
-}) => {
+const ConfirmDialog: React.FC<ConfirmDialogProps> = (props) => {
   const { confirm } = Modal;
 
-  const showConfirm = () => {
+  React.useEffect(() => {
     confirm({
-      title,
+      title: props.title,
       icon: <ExclamationCircleOutlined />,
-      content,
-      okText,
-      cancelText,
-      okType: type === 'error' ? 'danger' : 'primary',
-      onOk: onConfirm,
+      content: props.content,
+      okText: props.okText ?? '确定',
+      cancelText: props.cancelText ?? '取消',
+      okType: props.type === 'error' ? 'danger' : 'primary',
+      onOk: props.onConfirm,
     });
-  };
+  }, []);
 
-  return showConfirm();
+  return null;
 };
 
 export default ConfirmDialog; 

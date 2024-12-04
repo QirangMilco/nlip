@@ -8,10 +8,11 @@ import (
 // New 创建一个新的CORS中间件
 func New() fiber.Handler {
 	return cors.New(cors.Config{
-		AllowOrigins:     "*",
+		AllowOrigins:     "http://127.0.0.1:3000",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,
-		MaxAge:           300,
+		ExposeHeaders:    "Content-Length,Content-Range",
+		MaxAge:           3600,
 	})
 } 

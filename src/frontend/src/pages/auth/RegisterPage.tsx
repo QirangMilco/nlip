@@ -26,7 +26,14 @@ const RegisterPage: React.FC = () => {
         username: values.username,
         password: values.password
       });
-      dispatch(setAuth(response));
+      if (!response.user) {
+        throw new Error('注册成功但未返回用户信息');
+      }
+      dispatch(setAuth({
+        token: response.token,
+        user: response.user,
+        needChangePwd: response.needChangePwd
+      }));
       message.success('注册成功');
       navigate('/');
     } catch (error: any) {

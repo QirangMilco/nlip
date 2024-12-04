@@ -18,6 +18,8 @@ type ServerSettings struct {
 	Space struct {
 		DefaultMaxItems      int `json:"default_max_items"`
 		DefaultRetentionDays int `json:"default_retention_days"`
+		MaxItemsLimit       int `json:"max_items_limit"`
+		MaxRetentionDaysLimit int `json:"max_retention_days_limit"`
 	} `json:"space"`
 	Security struct {
 		TokenExpiry string `json:"token_expiry"`
@@ -47,9 +49,13 @@ func HandleGetSettings(c *fiber.Ctx) error {
 		Space: struct {
 			DefaultMaxItems      int `json:"default_max_items"`
 			DefaultRetentionDays int `json:"default_retention_days"`
+			MaxItemsLimit       int `json:"max_items_limit"`
+			MaxRetentionDaysLimit int `json:"max_retention_days_limit"`
 		}{
-			DefaultMaxItems:      20,
-			DefaultRetentionDays: 7,
+			DefaultMaxItems:      config.AppConfig.Space.DefaultMaxItems,
+			DefaultRetentionDays: config.AppConfig.Space.DefaultRetentionDays,
+			MaxItemsLimit:       config.AppConfig.Space.MaxItemsLimit,
+			MaxRetentionDaysLimit: config.AppConfig.Space.MaxRetentionDaysLimit,
 		},
 		Security: struct {
 			TokenExpiry string `json:"token_expiry"`
@@ -92,11 +98,16 @@ func HandleUpdateSettings(c *fiber.Ctx) error {
 		updates["max_file_size"] = settings.Upload.MaxSize
 	}
 
-	// 更新空间默认设置
-	if settings.Space.DefaultMaxItems > 0 || settings.Space.DefaultRetentionDays > 0 {
+	// 更新空间设置
+	if settings.Space.DefaultMaxItems > 0 || 
+	   settings.Space.DefaultRetentionDays > 0 || 
+	   settings.Space.MaxItemsLimit > 0 || 
+	   settings.Space.MaxRetentionDaysLimit > 0 {
 		updates["space_defaults"] = map[string]interface{}{
-			"max_items":      settings.Space.DefaultMaxItems,
-			"retention_days": settings.Space.DefaultRetentionDays,
+			"max_items":              settings.Space.DefaultMaxItems,
+			"retention_days":         settings.Space.DefaultRetentionDays,
+			"max_items_limit":        settings.Space.MaxItemsLimit,
+			"max_retention_days_limit": settings.Space.MaxRetentionDaysLimit,
 		}
 	}
 
@@ -114,5 +125,6 @@ func HandleUpdateSettings(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "更新设置成功",
+		"data":    updates,
 	})
 } 
