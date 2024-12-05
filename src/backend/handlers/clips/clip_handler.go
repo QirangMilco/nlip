@@ -2,6 +2,7 @@ package clips
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"nlip/config"
 	"nlip/models/clip"
@@ -76,21 +77,88 @@ func checkClipPermission(tx *sql.Tx, spaceID, clipID, userID string, isAdmin boo
 			return "", fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
 		}
 	} else {
-		// 其他空间权限检查
+		// 查询空间信息和权限
 		var spaceOwnerID string
-		err := tx.QueryRow("SELECT owner_id FROM nlip_spaces WHERE id = ?", spaceID).Scan(&spaceOwnerID)
+		var invitedUsers sql.NullString
+		err := tx.QueryRow(`
+			SELECT owner_id, invited_users 
+			FROM nlip_spaces 
+			WHERE id = ?
+		`, spaceID).Scan(&spaceOwnerID, &invitedUsers)
+
 		if err == sql.ErrNoRows {
 			return "", fiber.NewError(fiber.StatusNotFound, ErrSpaceNotFound)
 		} else if err != nil {
 			return "", err
 		}
 
+		// 检查用户权限
 		if !isAdmin && spaceOwnerID != userID {
-			return "", fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
+			if !invitedUsers.Valid {
+				return "", fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
+			}
+
+			var permissions map[string]string
+			if err := json.Unmarshal([]byte(invitedUsers.String), &permissions); err != nil {
+				return "", fiber.NewError(fiber.StatusInternalServerError, "权限解析失败")
+			}
+
+			permission, exists := permissions[userID]
+			if !exists {
+				return "", fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
+			}
+
+			// 对于需要写权限的操作，检查是否具有编辑权限
+			if clipID != "" && permission != "edit" {
+				return "", fiber.NewError(fiber.StatusForbidden, "当前权限不允许此操作")
+			}
 		}
 	}
 
 	return creatorID, nil
+}
+
+// 添加检查用户是否具有读权限的函数
+func checkReadPermission(tx *sql.Tx, spaceID, userID string, isAdmin bool) error {
+	if spaceID == PublicSpaceID {
+		return nil // 公共空间所有人都可以读取
+	}
+
+	var spaceOwnerID string
+	var invitedUsers sql.NullString
+	err := tx.QueryRow(`
+		SELECT owner_id, invited_users 
+		FROM nlip_spaces 
+		WHERE id = ?
+	`, spaceID).Scan(&spaceOwnerID, &invitedUsers)
+
+	if err == sql.ErrNoRows {
+		return fiber.NewError(fiber.StatusNotFound, ErrSpaceNotFound)
+	} else if err != nil {
+		return err
+	}
+
+	// 空间所有者和管理员具有所有权限
+	if isAdmin || spaceOwnerID == userID {
+		return nil
+	}
+
+	// 检查被邀请用户的权限
+	if !invitedUsers.Valid {
+		return fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
+	}
+
+	var permissions map[string]string
+	if err := json.Unmarshal([]byte(invitedUsers.String), &permissions); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "权限解析失败")
+	}
+
+	_, exists := permissions[userID]
+	if !exists {
+		return fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
+	}
+
+	return nil
 }
 
 // 添加文件处理辅助函数
@@ -164,40 +232,6 @@ func scanClip(rows *sql.Rows) (*clip.Clip, error) {
 	}
 
 	return &cl, nil
-}
-
-// scanClipWithSpaceOwner 辅助函数：扫描带空间所有者信息的剪贴板数据
-func scanClipWithSpaceOwner(row *sql.Row) (*clip.Clip, string, error) {
-	var cl clip.Clip
-	var spaceOwnerID string
-	var creatorID, creatorUsername sql.NullString
-
-	err := row.Scan(
-		&cl.ID,
-		&cl.ClipID,
-		&cl.SpaceID,
-		&cl.ContentType,
-		&cl.Content,
-		&cl.FilePath,
-		&cl.CreatedAt,
-		&cl.UpdatedAt,
-		&spaceOwnerID,
-		&creatorID,
-		&creatorUsername,
-	)
-
-	if err != nil {
-		return nil, "", err
-	}
-
-	if creatorID.Valid && creatorUsername.Valid {
-		cl.Creator = &clip.Creator{
-			ID:       creatorID.String,
-			Username: creatorUsername.String,
-		}
-	}
-
-	return &cl, spaceOwnerID, nil
 }
 
 // 添加新的扫描函数用于单行结果
@@ -514,7 +548,7 @@ func HandleUploadClip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, ErrInvalidRequest)
 	}
 
-	var uploadedClip *clip.Clip 
+	var uploadedClip *clip.Clip
 
 	// 先完成上传事务
 	err := db.WithTransaction(config.DB, func(tx *sql.Tx) error {
@@ -572,7 +606,7 @@ func HandleUploadClip(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, "保存剪贴板内容失败")
 		}
 
-		uploadedClip = &cl 
+		uploadedClip = &cl
 		return nil
 	})
 
@@ -587,7 +621,7 @@ func HandleUploadClip(c *fiber.Ctx) error {
 	go func() {
 		// 添加延迟，确保上传事务完全提交
 		time.Sleep(100 * time.Millisecond)
-		
+
 		err := cleaner.CleanSpaceOverflow(req.SpaceID)
 		if err != nil {
 			logger.Error("清理空间超量内容失败: %v", err)
@@ -625,12 +659,9 @@ func HandleListClips(c *fiber.Ctx) error {
 	isAdmin := c.Locals("isAdmin").(bool)
 
 	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
-		// 权限检查
-		if spaceID != PublicSpaceID {
-			_, err := checkClipPermission(tx, spaceID, "", userID, isAdmin)
-			if err != nil {
-				return err
-			}
+		// 检查读取权限
+		if err := checkReadPermission(tx, spaceID, userID, isAdmin); err != nil {
+			return err
 		}
 
 		// 使用通用查询语句
@@ -675,12 +706,9 @@ func HandleGetClip(c *fiber.Ctx) error {
 	isDownload := c.Query("download") == "true"
 
 	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
-		// 权限检查
-		if spaceID != PublicSpaceID {
-			_, err := checkClipPermission(tx, spaceID, clipID, userID, isAdmin)
-			if err != nil {
-				return err
-			}
+		// 检查读取权限
+		if err := checkReadPermission(tx, spaceID, userID, isAdmin); err != nil {
+			return err
 		}
 
 		// 查询剪贴板内容

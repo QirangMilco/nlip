@@ -17,7 +17,18 @@ import (
 	"github.com/gofiber/websocket/v2"
 )
 
-func SetupRoutes(api fiber.Router) {
+func SetupRoutes(router fiber.Router) {
+	// 创建 v1 版本的路由组
+	v1 := router.Group("/v1/nlip")
+	setupV1Routes(v1)
+
+	// 为未来的版本预留扩展点
+	// v2 := router.Group("/v2/nlip")
+	// setupV2Routes(v2)
+}
+
+// setupV1Routes 设置 v1 版本的所有路由
+func setupV1Routes(api fiber.Router) {
 	// 1. 完全公开的路由 - 不需要认证
 	api.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -74,6 +85,22 @@ func SetupRoutes(api fiber.Router) {
 		validator.ValidateBody(&space.UpdateSpaceRequest{}),
 		spaces.HandleUpdateSpace)
 	spaceRoutes.Delete("/:id", spaces.HandleDeleteSpace)
+
+	// 协作者相关路由
+	spaceRoutes.Post("/:id/collaborators/invite",
+		validator.ValidateBody(&space.InviteCollaboratorRequest{}),
+		spaces.HandleInviteCollaborator)
+	spaceRoutes.Delete("/:id/collaborators/remove",
+		validator.ValidateBody(&space.RemoveCollaboratorRequest{}),
+		spaces.HandleRemoveCollaborator)
+	spaceRoutes.Put("/:id/collaborators/update-permissions",
+		validator.ValidateBody(&space.UpdateCollaboratorPermissionsRequest{}),
+		spaces.HandleUpdateCollaboratorPermissions)
+
+	// 更新空间设置路由
+	spaceRoutes.Put("/:id/settings",
+		validator.ValidateBody(&space.UpdateSpaceSettingsRequest{}),
+		spaces.HandleUpdateSpaceSettings)
 
 	// 剪贴板路由 - 所有操作都需要验证
 	clipRoutes := spaceRoutes.Group("/:spaceId/clips")

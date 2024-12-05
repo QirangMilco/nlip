@@ -190,6 +190,92 @@
 }
 ```
 
+### Update Space Settings
+- **PUT** `/spaces/:id/settings`
+- **Authentication Required**: Yes
+- **Request Body**:
+```typescript
+{
+  name?: string;
+  maxItems?: number;
+  retentionDays?: number;
+  visibility?: 'public' | 'private';
+}
+```
+- **Response**:
+```typescript
+{
+  code: 200;
+  data: {
+    space: {
+      id: string;
+      name: string;
+      type: string;
+      ownerId: string;
+      maxItems: number;
+      retentionDays: number;
+      createdAt: string;
+    };
+  };
+  message: string;
+}
+```
+
+### Collaborator Management APIs
+
+#### Invite Collaborator
+- **POST** `/spaces/:id/collaborators/invite`
+- **Authentication Required**: Yes
+- **Request Body**:
+```typescript
+{
+  collaboratorId: string;
+  permission: 'edit' | 'view';
+}
+```
+- **Response**:
+```typescript
+{
+  code: 200;
+  message: string;
+}
+```
+
+#### Remove Collaborator
+- **DELETE** `/spaces/:id/collaborators/remove`
+- **Authentication Required**: Yes
+- **Request Body**:
+```typescript
+{
+  collaboratorId: string;
+}
+```
+- **Response**:
+```typescript
+{
+  code: 200;
+  message: string;
+}
+```
+
+#### Update Collaborator Permissions
+- **PUT** `/spaces/:id/collaborators/update-permissions`
+- **Authentication Required**: Yes
+- **Request Body**:
+```typescript
+{
+  collaboratorId: string;
+  permission: 'edit' | 'view';
+}
+```
+- **Response**:
+```typescript
+{
+  code: 200;
+  message: string;
+}
+```
+
 ## Clipboard Content APIs
 
 ### Upload Content

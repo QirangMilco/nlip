@@ -84,6 +84,7 @@ func createTables() error {
             owner_id VARCHAR(36),
             max_items INT DEFAULT 20,
             retention_days INT DEFAULT 7,
+            invited_users TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (owner_id) REFERENCES nlip_users(id)

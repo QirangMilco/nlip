@@ -162,6 +162,76 @@
     message: string;
   }  ```
 
+### 更新空间设置
+- **PUT** `/spaces/:id/settings`
+- **需要认证**: 是
+- **请求体**:  ```typescript
+  {
+    name?: string;
+    maxItems?: number;
+    retentionDays?: number;
+    visibility?: 'public' | 'private';
+  }  ```
+- **响应**:  ```typescript
+  {
+    code: 200;
+    data: {
+      space: {
+        id: string;
+        name: string;
+        type: string;
+        ownerId: string;
+        maxItems: number;
+        retentionDays: number;
+        createdAt: string;
+      };
+    };
+    message: string;
+  }  ```
+
+### 协作者管理 API
+
+#### 邀请协作者
+- **POST** `/spaces/:id/collaborators/invite`
+- **需要认证**: 是
+- **请求体**:  ```typescript
+  {
+    collaboratorId: string;
+    permission: 'edit' | 'view';
+  }  ```
+- **响应**:  ```typescript
+  {
+    code: 200;
+    message: string;
+  }  ```
+
+#### 删除协作者
+- **DELETE** `/spaces/:id/collaborators/remove`
+- **需要认证**: 是
+- **请求体**:  ```typescript
+  {
+    collaboratorId: string;
+  }  ```
+- **响应**:  ```typescript
+  {
+    code: 200;
+    message: string;
+  }  ```
+
+#### 更新协作者权限
+- **PUT** `/spaces/:id/collaborators/update-permissions`
+- **需要认证**: 是
+- **请求体**:  ```typescript
+  {
+    collaboratorId: string;
+    permission: 'edit' | 'view';
+  }  ```
+- **响应**:  ```typescript
+  {
+    code: 200;
+    message: string;
+  }  ```
+
 ## 剪贴板内容 API
 
 ### 上传内容

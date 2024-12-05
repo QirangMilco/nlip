@@ -17,7 +17,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
+	"path/filepath"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -51,7 +51,9 @@ func main() {
 
 	// 添加静态文件服务
 	// 1. 直接服务dist目录
-	app.Static("/", "./dist")
+	distPath := "./static/dist"
+
+	app.Static("/", distPath)
 
 	// 2. 对于SPA应用,所有未匹配的路由重定向到index.html
 	app.Get("/*", func(c *fiber.Ctx) error {
@@ -60,7 +62,7 @@ func main() {
 			return c.Next()
 		}
 		// 其他路由返回index.html
-		return c.SendFile("./dist/index.html")
+		return c.SendFile(filepath.Join(distPath, "index.html"))
 	})
 
 	// API路由组
