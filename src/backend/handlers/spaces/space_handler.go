@@ -635,3 +635,74 @@ func HandleUpdateSpaceSettings(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// HandlePublicSpaceStats 处理获取公共空间统计信息
+func HandlePublicSpaceStats(c *fiber.Ctx) error {
+	// 获取公共空间的剪贴板数量
+	var clipCount int
+	err := config.DB.QueryRow(`
+		SELECT COUNT(*) FROM nlip_clipboard_items 
+		WHERE space_id IN (SELECT id FROM nlip_spaces WHERE type = 'public')
+	`).Scan(&clipCount)
+
+	if err != nil {
+		logger.Error("获取公共空间统计信息失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "获取统计信息失败")
+	}
+
+	return c.JSON(fiber.Map{
+		"code": fiber.StatusOK,
+		"message": "获取公共空间统计信息成功",
+		"data": fiber.Map{
+			"clipCount": clipCount,
+		},
+	})
+}
+
+// HandleSpaceStats 处理获取空间统计信息
+func HandleSpaceStats(c *fiber.Ctx) error {
+	spaceID := c.Params("id")
+	userID := c.Locals("userId").(string)
+	isAdmin := c.Locals("isAdmin").(bool)
+
+	// 检查空间是否存在并获取基本信息
+	var s space.Space
+	err := config.DB.QueryRow(`
+		SELECT id, name, type, owner_id
+		FROM nlip_spaces WHERE id = ?
+	`, spaceID).Scan(&s.ID, &s.Name, &s.Type, &s.OwnerID)
+
+	if err == sql.ErrNoRows {
+		logger.Warning("尝试获取不存在的空间统计信息: %s", spaceID)
+		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
+	} else if err != nil {
+		logger.Error("获取空间信息失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "获取统计信息失败")
+	}
+
+	// 检查权限
+	if s.Type != "public" && !isAdmin && s.OwnerID != userID {
+		logger.Warning("用户 %s 尝试获取无权限的空间统计信息 %s", userID, spaceID)
+		return fiber.NewError(fiber.StatusForbidden, "没有权限查看此空间统计信息")
+	}
+
+	// 获取剪贴板数量
+	var clipCount int
+	err = config.DB.QueryRow(`
+		SELECT COUNT(*) FROM nlip_clipboard_items 
+		WHERE space_id = ?
+	`, spaceID).Scan(&clipCount)
+
+	if err != nil {
+		logger.Error("获取空间统计信息失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "获取统计信息失败")
+	}
+
+	return c.JSON(fiber.Map{
+		"code": fiber.StatusOK,
+		"message": "获取空间统计信息成功",
+		"data": fiber.Map{
+			"clipCount": clipCount,
+		},
+	})
+}

@@ -47,9 +47,9 @@ export const useClips = (spaceId: string) => {
     }
   }, []);
 
-  const deleteClip = useCallback(async (clipId: string) => {
+  const deleteClip = useCallback(async (clipId: string, spaceType: string) => {
     try {
-      await clipApi.deleteClip(spaceId, clipId);
+      await clipApi.deleteClip(spaceId, clipId, spaceType);
       setClips(prev => Array.isArray(prev) ? prev.filter(clip => clip.id !== clipId) : []);
     } catch (err) {
       throw err;

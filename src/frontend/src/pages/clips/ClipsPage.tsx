@@ -3,24 +3,30 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useClips } from '@/hooks/useClip';
 import { useSpace } from '@/hooks/useSpace';
 import { 
-  Card, Empty, Spin, Select, Button, Space as AntSpace, 
+  Card, Empty, Spin, Button, Space as AntSpace, 
   Input, message, Typography, Tooltip, Modal
 } from 'antd';
 import { 
   LogoutOutlined, SettingOutlined, CopyOutlined,
   EditOutlined, DeleteOutlined, UploadOutlined,
   SaveOutlined, DownloadOutlined,
-  LoadingOutlined, ReloadOutlined
+  LoadingOutlined, ReloadOutlined, PlusOutlined
 } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearAuth } from '@/store/slices/authSlice';
 import { RootState } from '@/store';
 import dayjs from 'dayjs';
 import SpaceSettingsModal from './components/SpaceSettingsModal';
-import { UploadClipRequest, Clip, ImagePreviewState } from '@/store/types';
+import { UploadClipRequest, Clip, ImagePreviewState, SpaceStats } from '@/store/types';
 import styles from './ClipsPage.module.scss';
 import { updateClip } from '@/api/clips';
-import { SPACE_CONSTANTS } from '@/constants/spaces';
+import CreateSpaceModal from './components/CreateSpaceModal';
+import SpacePermissionAlert from './components/SpacePermissionAlert';
+import { useSpaceNavigation } from '@/hooks/useSpaceNavigation';
+import { getSpacePermission } from '@/utils/permission';
+import { getSpaceStats } from '@/api/spaces';
+import SpaceList from './components/SpaceList';
+import SpaceStatsCard from './components/SpaceStatsCard';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -34,7 +40,7 @@ const ClipsPage: React.FC = () => {
 
   // 2. 状态管理 hooks
   const currentUser = useSelector((state: RootState) => state.auth.user);
-  const { spaces, loading: loadingSpaces } = useSpace();
+  const { spaces, loading: loadingSpaces, fetchSpaces } = useSpace();
   const {
     clips,
     isLoading: isLoadingClips,
@@ -74,26 +80,24 @@ const ClipsPage: React.FC = () => {
 
   // 添加用户认证状态检查
   const { token } = useSelector((state: RootState) => state.auth);
-  const isPublicSpace = spaceId === SPACE_CONSTANTS.PUBLIC_SPACE_ID;
-  const isGuest = isPublicSpace && !token;
+  // const isPublicSpace = currentSpace?.type === 'public';
+  // const isGuest = isPublicSpace && !token;
 
-  // 修改权限检查逻辑
-  const canManageClip = (clip: Clip) => {
-    if (isGuest) return false;
-    if (!currentUser) return false;
-    if (currentUser.isAdmin) return true;
-    return clip.creator?.id === currentUser.id;
-  };
+  // 更新权限检查函数
+  const checkSpacePermission = useCallback((requiredPermission: 'edit' | 'view' = 'view') => {
+    if (!currentSpace || !currentUser) return false;
+    
+    const permission = getSpacePermission(currentSpace, currentUser);
+    if (!permission) return false;
 
-  // 修改空间管理权限检查
+    return requiredPermission === 'view' ? true : permission === 'edit';
+  }, [currentSpace, currentUser]);
+
+  // 更新空间管理权限检查
   const canManageSpace = useMemo(() => {
-    if (isGuest) return false;
-    if (!currentUser || !currentSpace) return false;
-    if (currentUser.isAdmin) {
-      return currentSpace.ownerId === 'system' || currentSpace.ownerId === currentUser.id;
-    }
-    return currentSpace.ownerId === currentUser.id;
-  }, [currentUser, currentSpace, isGuest]);
+    if (!currentSpace || !currentUser) return false;
+    return currentUser.isAdmin || currentSpace.ownerId === currentUser.id;
+  }, [currentSpace, currentUser]);
 
   const sortedClips = useMemo(() => {
     if (!clips) return [];
@@ -122,15 +126,48 @@ const ClipsPage: React.FC = () => {
   }, [spaceId, fetchClips]);
 
   // 6. 事件处理函数
-  const handleSpaceChange = (newSpaceId: string) => {
-    navigate(`/clips/${newSpaceId}`);
-  };
+  const { handleSpaceChange: navigateToSpace } = useSpaceNavigation();
+
+  const fetchSpaceStats = useCallback(async () => {
+    if (!spaceId) return;
+    try {
+      setLoadingStats(true);
+      const stats = await getSpaceStats(spaceId);
+      setSpaceStats(stats);
+    } catch (error) {
+      console.error('获取空间统计信息失败:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [spaceId]);
+
+  const handleSpaceChange = useCallback(async (newSpaceId: string) => {
+    try {
+      // 清空当前状态
+      setNewContent('');
+      setEditingClipId(null);
+      setExpandedClips(new Set());
+      setImagePreviewStates({});
+      
+      // 切换空间
+      await navigateToSpace(newSpaceId, currentSpace?.type || 'private', spaces);
+      
+      // 重新加载数据
+      await Promise.all([
+        fetchClips(),
+        fetchSpaceStats()
+      ]);
+    } catch (error) {
+      message.error('切换空间失败');
+    }
+  }, [spaces, navigateToSpace, fetchClips, fetchSpaceStats]);
 
   const handleUpload = async (data: UploadClipRequest) => {
     if (!spaceId) return;
     try {
       await uploadClipToSpace(data);
       message.success('上传成功');
+      await fetchSpaceStats();
     } catch (error: any) {
       message.error(error.message || '上传失败');
     }
@@ -151,15 +188,15 @@ const ClipsPage: React.FC = () => {
           [clip.clipId]: {
             loading: true,
             error: false,
-            url: null
+            url: null,
+            scale: 1,
+            position: { x: 0, y: 0 }
           }
         }));
       }
 
       // 对于预览操作，使用不同的 API 路径
-      const blob = type === 'preview' && isGuest
-        ? await downloadClipFromSpace(SPACE_CONSTANTS.PUBLIC_SPACE_ID, clip.clipId)
-        : await downloadClipFromSpace(spaceId, clip.clipId);
+      const blob = await downloadClipFromSpace(spaceId, clip.clipId);
 
       const url = window.URL.createObjectURL(blob);
 
@@ -169,7 +206,9 @@ const ClipsPage: React.FC = () => {
           [clip.clipId]: {
             loading: false,
             error: false,
-            url
+            url,
+            scale: 1,
+            position: { x: 0, y: 0 }
           }
         }));
         return url;
@@ -194,11 +233,13 @@ const ClipsPage: React.FC = () => {
           [clip.clipId]: {
             loading: false,
             error: true,
-            url: null
+            url: null,
+            scale: 1,
+            position: { x: 0, y: 0 }
           }
         }));
       }
-      message.error(error.message || `${type === 'download' ? '下载' : '预览'}失败`);
+      message.error(error.message || `${type === 'download' ? '下载' : '预'}失败`);
       return null;
     }
   };
@@ -236,6 +277,7 @@ const ClipsPage: React.FC = () => {
       setNewContent('');
       message.success('保存成功');
       await fetchClips();
+      await fetchSpaceStats();
     } catch (error: any) {
       message.error(error.message || '保存失败');
     }
@@ -248,7 +290,7 @@ const ClipsPage: React.FC = () => {
 
   const handleSaveEdit = async (clipId: string) => {
     try {
-      await updateClip(spaceId || '', clipId, editContent);
+      await updateClip(spaceId || '', clipId, editContent, currentSpace?.type || 'private');
       setEditingClipId(null);
       message.success('更新成功');
       await fetchClips();
@@ -269,9 +311,10 @@ const ClipsPage: React.FC = () => {
 
   const handleDelete = async (clipId: string) => {
     try {
-      await deleteClipFromSpace(clipId);
+      await deleteClipFromSpace(clipId, currentSpace?.type || 'private');
       message.success('删除成功');
       await fetchClips();
+      await fetchSpaceStats();
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
@@ -311,72 +354,64 @@ const ClipsPage: React.FC = () => {
     return fileName || '';
   }
 
-  // 修改剪贴板操作按钮渲染
-  const renderClipActions = (clip: Clip) => (
-    <div className={styles.clipActions}>
-      <Tooltip title="复制文本">
-        <Button 
-          type="text" 
+  // 修改剪贴板操作按钮的渲染逻辑
+  const renderClipActions = (clip: Clip) => {
+    const actions = [];
+
+    // 复制按钮总是可用
+    actions.push(
+      <Tooltip key="copy" title="复制">
+        <Button
+          type="text"
           icon={<CopyOutlined />}
           onClick={() => handleCopy(clip)}
           disabled={!clip.content}
         />
       </Tooltip>
-      
-      {clip.filePath && (
-        <Tooltip title="下载文件">
-          <Button 
-            type="text" 
+    );
+
+    // 下载按钮（如果是文件）
+    if (clip.filePath) {
+      actions.push(
+        <Tooltip key="download" title="下载">
+          <Button
+            type="text"
             icon={<DownloadOutlined />}
             onClick={() => handleDownload(clip)}
           />
         </Tooltip>
-      )}
-      
-      {/* 只有非游客且有权限的用户才能看到编辑按钮 */}
-      {canManageClip(clip) && !clip.filePath && (
-        <Tooltip title="修改">
-          <Button 
-            type="text" 
+      );
+    }
+
+    // 编辑和删除按钮需要编辑权限
+    if (checkSpacePermission('edit')) {
+      actions.push(
+        <Tooltip key="edit" title="编辑">
+          <Button
+            type="text"
             icon={<EditOutlined />}
             onClick={() => handleEdit(clip)}
           />
-        </Tooltip>
-      )}
-      
-      {/* 只有非游客且有权限的用户才能看见删除按钮 */}
-      {canManageClip(clip) && (
-        <Tooltip title="删除">
-          <Button 
-            type="text" 
-            danger
+        </Tooltip>,
+        <Tooltip key="delete" title="删除">
+          <Button
+            type="text"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(clip.clipId)}
           />
         </Tooltip>
-      )}
-    </div>
-  );
+      );
+    }
+
+    return actions;
+  };
 
   // 修改标题栏渲染
   const renderHeader = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <span>剪贴板 - {currentSpace?.name}</span>
-        <Select
-          value={currentSpace?.id}
-          onChange={handleSpaceChange}
-          style={{ width: 200 }}
-          loading={loadingSpaces}
-        >
-          {spaces.map(s => (
-            <Select.Option key={s.id} value={s.id}>
-              {s.name}
-              {s.ownerId === currentUser?.id && ' (我的)'}
-              {s.ownerId === 'system' && ' (公共)'}
-            </Select.Option>
-          ))}
-        </Select>
+        {renderSpaceSelector()}
       </div>
       <AntSpace>
         {currentUser ? (
@@ -462,7 +497,9 @@ const ClipsPage: React.FC = () => {
                       [clip.clipId]: {
                         loading: false,
                         error: true,
-                        url: null
+                        url: null,
+                        scale: 1,
+                        position: { x: 0, y: 0 }
                       }
                     }));
                   }}
@@ -589,6 +626,37 @@ const ClipsPage: React.FC = () => {
     setIsDragging(false);
   };
 
+  const [spaceStats, setSpaceStats] = useState<SpaceStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // 在空间切换时更新统计信息
+  useEffect(() => {
+    fetchSpaceStats();
+  }, [spaceId, fetchSpaceStats]);
+
+  const [showCreateSpace, setShowCreateSpace] = useState(false);
+
+  const renderSpaceSelector = () => (
+    <div className={styles.spaceSelector}>
+      <SpaceList
+        spaces={spaces}
+        currentUser={currentUser}
+        value={spaceId}
+        loading={loadingSpaces}
+        onChange={handleSpaceChange}
+      />
+      {currentUser && (
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setShowCreateSpace(true)}
+        >
+          创建空间
+        </Button>
+      )}
+    </div>
+  );
+
   // 7. 条件渲染
   if (loadingSpaces || isLoadingClips) {
     return (
@@ -612,153 +680,200 @@ const ClipsPage: React.FC = () => {
   // 8. 主要渲染
   return (
     <div className={styles.container}>
-      <Card 
-        title={renderHeader()} 
-        className={styles.pageCard}
-      >
-        {/* 新增剪贴板输入框 */}
-        <div className={styles.newClip}>
-          <TextArea
-            value={newContent}
-            onChange={e => setNewContent(e.target.value)}
-            placeholder="输入新的剪贴板内容..."
-            autoSize={{ minRows: 3, maxRows: 6 }}
-          />
-          <div className={styles.inputActions}>
-            <input
-              type="file"
-              id="fileUpload"
-              style={{ display: 'none' }}
-              onChange={handleFileUpload}
-              accept="image/*,text/*,application/pdf"
-            />
-            <Button 
-              icon={<UploadOutlined />}
-              onClick={() => document.getElementById('fileUpload')?.click()}
-            >
-              上传文件
-            </Button>
-            <Button 
-              type="primary"
-              icon={<SaveOutlined />}
-              onClick={handleSaveNew}
-            >
-              保存
-            </Button>
-          </div>
-        </div>
-
-        {/* 剪贴板列表 */}
-        {isLoadingClips ? (
-          <Spin />
-        ) : sortedClips.length === 0 ? (
-          <Empty description="暂无剪贴板内容" />
-        ) : (
-          <div className={styles.clipList}>
-            {sortedClips.map(clip => (
-              <Card 
-                key={clip.clipId}
-                className={styles.clipItem}
-                size="small"
-              >
-                {/* 头部信息 */}
-                <div className={styles.clipHeader}>
-                  <div className={styles.clipInfo}>
-                    <Text type="secondary">
-                      创建于 {dayjs(clip.createdAt).format('YYYY-MM-DD HH:mm')}
-                      {clip.updatedAt !== clip.createdAt && 
-                        `，更新于 ${dayjs(clip.updatedAt).format('YYYY-MM-DD HH:mm')}`}
-                    </Text>
-                    <Text type="secondary">
-                      创建者: {clip.creator?.username || '游客'}
-                    </Text>
-                  </div>
-                  {renderClipActions(clip)}
-                </div>
-
-                {/* 内容部分 */}
-                <div className={styles.clipContent}>
-                  {editingClipId === clip.clipId ? (
-                    <div className={styles.editContent}>
-                      <TextArea
-                        value={editContent}
-                        onChange={e => setEditContent(e.target.value)}
-                        autoSize={{ minRows: 3, maxRows: 6 }}
-                      />
-                      <div className={styles.editActions}>
-                        <Button 
-                          onClick={() => setEditingClipId(null)}
-                        >
-                          取消
-                        </Button>
-                        <Button 
-                          type="primary"
-                          icon={<SaveOutlined />}
-                          onClick={() => handleSaveEdit(clip.clipId)}
-                        >
-                          保存
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    renderClipContent(clip)
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {canManageSpace && showSettings && (
-          <SpaceSettingsModal
-            visible={showSettings}
+      <div className={styles.mainContent}>
+        {currentSpace && (
+          <SpacePermissionAlert
             space={currentSpace}
-            onClose={() => setShowSettings(false)}
+            permission={getSpacePermission(currentSpace, currentUser)}
+            isAdmin={currentUser?.isAdmin}
           />
         )}
-
-        {/* 修改图片放大浮窗 */}
-        <Modal
-          open={!!visibleImage}
-          footer={null}
-          onCancel={() => {
-            setVisibleImage(null);
-            setScale(1);
-            setPosition({ x: 0, y: 0 });
-          }}
-          width="90vw"
-          style={{ 
-            maxWidth: '90vw',
-            maxHeight: '90vh',
-            padding: 0,
-          }}
-          centered
-          className={styles.imageModal}
-          closable={true}
-          maskClosable={true}
+        <Card 
+          title={renderHeader()} 
+          className={styles.pageCard}
         >
-          <div 
-            className={styles.imageModalContent}
-            onWheel={handleWheel}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-          >
-            <img 
-              ref={imageRef}
-              src={visibleImage || ''} 
-              alt="Preview" 
-              style={{ 
-                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-                transformOrigin: '0 0',
-                pointerEvents: 'none', // 防止图片干扰拖动事件
+          {/* 新增剪贴板输入框 */}
+          <div className={styles.newClip}>
+            <TextArea
+              value={newContent}
+              onChange={e => setNewContent(e.target.value)}
+              placeholder="输入新的剪贴板内容..."
+              autoSize={{ minRows: 3, maxRows: 6 }}
+            />
+            <div className={styles.inputActions}>
+              <input
+                type="file"
+                id="fileUpload"
+                style={{ display: 'none' }}
+                onChange={handleFileUpload}
+                accept="image/*,text/*,application/pdf"
+              />
+              <Button 
+                icon={<UploadOutlined />}
+                onClick={() => document.getElementById('fileUpload')?.click()}
+              >
+                上传文件
+              </Button>
+              <Button 
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={handleSaveNew}
+              >
+                保存
+              </Button>
+            </div>
+          </div>
+
+          {/* 剪贴板列表 */}
+          {isLoadingClips ? (
+            <Spin />
+          ) : sortedClips.length === 0 ? (
+            <Empty description="暂无剪贴板内容" />
+          ) : (
+            <div className={styles.clipList}>
+              {sortedClips.map(clip => (
+                <Card 
+                  key={clip.clipId}
+                  className={styles.clipItem}
+                  size="small"
+                >
+                  {/* 头部信息 */}
+                  <div className={styles.clipHeader}>
+                    <div className={styles.clipInfo}>
+                      <Text type="secondary">
+                        创建于 {dayjs(clip.createdAt).format('YYYY-MM-DD HH:mm')}
+                        {clip.updatedAt !== clip.createdAt && 
+                          `，更新于 ${dayjs(clip.updatedAt).format('YYYY-MM-DD HH:mm')}`}
+                      </Text>
+                      <Text type="secondary">
+                        创建者: {clip.creator?.username || '游客'}
+                      </Text>
+                    </div>
+                    {renderClipActions(clip)}
+                  </div>
+
+                  {/* 内容部分 */}
+                  <div className={styles.clipContent}>
+                    {editingClipId === clip.clipId ? (
+                      <div className={styles.editContent}>
+                        <TextArea
+                          value={editContent}
+                          onChange={e => setEditContent(e.target.value)}
+                          autoSize={{ minRows: 3, maxRows: 6 }}
+                        />
+                        <div className={styles.editActions}>
+                          <Button 
+                            onClick={() => setEditingClipId(null)}
+                          >
+                            取消
+                          </Button>
+                          <Button 
+                            type="primary"
+                            icon={<SaveOutlined />}
+                            onClick={() => handleSaveEdit(clip.clipId)}
+                          >
+                            保存
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      renderClipContent(clip)
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {canManageSpace && showSettings && (
+            <SpaceSettingsModal
+              visible={showSettings}
+              space={currentSpace}
+              onClose={() => setShowSettings(false)}
+              onSpaceUpdated={async (action?: 'delete') => {
+                try {
+                  if (action === 'delete') {
+                    setShowSettings(false);
+                    await fetchSpaces();
+                    
+                    if (spaces.length > 0) {
+                      const privateSpace = spaces.find(s => s.type === 'private');
+                      const defaultSpace = privateSpace || spaces[0];
+                      navigate(`/clips/${defaultSpace.id}`, { replace: true });
+                    } else {
+                      navigate('/clips', { replace: true });
+                    }
+                  } else {
+                    await fetchSpaceStats();
+                    await fetchClips();
+                  }
+                } catch (error) {
+                  console.error('更新空间数据失败:', error);
+                  message.error('更新空间数据失败，请刷新页面重试');
+                }
               }}
             />
-          </div>
-        </Modal>
-      </Card>
+          )}
+
+          {/* 修改图片放大浮窗 */}
+          <Modal
+            open={!!visibleImage}
+            footer={null}
+            onCancel={() => {
+              setVisibleImage(null);
+              setScale(1);
+              setPosition({ x: 0, y: 0 });
+            }}
+            width="90vw"
+            style={{ 
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              padding: 0,
+            }}
+            centered
+            className={styles.imageModal}
+            closable={true}
+            maskClosable={true}
+          >
+            <div 
+              className={styles.imageModalContent}
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+            >
+              <img 
+                ref={imageRef}
+                src={visibleImage || ''} 
+                alt="Preview" 
+                style={{ 
+                  transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                  transformOrigin: '0 0',
+                  pointerEvents: 'none', // 防止图片干扰拖动事件
+                }}
+              />
+            </div>
+          </Modal>
+        </Card>
+
+        {/* 添加创建空间的模态框 */}
+        <CreateSpaceModal
+          visible={showCreateSpace}
+          onClose={() => setShowCreateSpace(false)}
+          onSuccess={fetchSpaces}
+        />
+      </div>
+      <div className={styles.sidebar}>
+        {currentSpace && (
+          <SpaceStatsCard 
+            space={currentSpace}
+            clipCount={spaceStats?.clipCount || 0}
+            loading={loadingStats}
+          />
+        )}
+      </div>
     </div>
   );
 };

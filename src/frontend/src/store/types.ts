@@ -4,6 +4,7 @@ export interface User {
   username: string;
   isAdmin: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 // 认证相关类型
@@ -42,6 +43,7 @@ export interface Space {
   ownerId: string;
   maxItems: number;
   retentionDays: number;
+  invitedUsers?: Record<string, 'edit' | 'view'>;
   createdAt: string;
   updatedAt: string;
 }
@@ -90,6 +92,12 @@ export interface UpdateSpaceRequest {
   retentionDays?: number;
 }
 
+export interface SpaceStats {
+  clipCount: number;
+  totalSize: number;
+  lastUpdated: string;
+}
+
 export interface UpdateClipRequest {
   content: string;
 } 
@@ -98,6 +106,11 @@ export interface ImagePreviewState {
   loading: boolean;
   error: boolean;
   url: string | null;
+  scale: number;
+  position: {
+    x: number;
+    y: number;
+  };
 }
 
 export interface SpaceSettings {

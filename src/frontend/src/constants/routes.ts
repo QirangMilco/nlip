@@ -2,7 +2,6 @@
 export const PUBLIC_ROUTES = [
   '/login',
   '/register',
-  '/change-password',
   '/clips/public-space',
 ] as const;
 

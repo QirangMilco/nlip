@@ -66,7 +66,7 @@ func main() {
 	})
 
 	// API路由组
-	api := app.Group("/api/v1/nlip")
+	api := app.Group("/api")
 	routes.SetupRoutes(api)
 
 	// 启动清理任务

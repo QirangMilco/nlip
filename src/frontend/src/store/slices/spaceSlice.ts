@@ -7,6 +7,7 @@ export interface Space {
   ownerId: string;
   maxItems: number;
   retentionDays: number;
+  invitedUsers?: Record<string, 'edit' | 'view'>;
   createdAt: string;
   updatedAt: string;
 }

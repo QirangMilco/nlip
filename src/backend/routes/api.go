@@ -52,6 +52,7 @@ func setupV1Routes(api fiber.Router) {
 		validator.ValidateBody(&clip.UploadClipRequest{}),
 		clips.HandleUploadClip)
 	publicSpaceRoutes.Get("/clips/:id", clips.HandleGetPublicClip)
+	publicSpaceRoutes.Get("/stats", spaces.HandlePublicSpaceStats)
 
 	// 添加获取空间列表的公开路由
 	api.Get("/spaces/list", spaces.HandleListSpaces)
@@ -85,6 +86,7 @@ func setupV1Routes(api fiber.Router) {
 		validator.ValidateBody(&space.UpdateSpaceRequest{}),
 		spaces.HandleUpdateSpace)
 	spaceRoutes.Delete("/:id", spaces.HandleDeleteSpace)
+	spaceRoutes.Get("/:id/stats", spaces.HandleSpaceStats)
 
 	// 协作者相关路由
 	spaceRoutes.Post("/:id/collaborators/invite",
