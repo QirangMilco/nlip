@@ -149,18 +149,17 @@ const ClipsPage: React.FC = () => {
       setExpandedClips(new Set());
       setImagePreviewStates({});
       
-      // 切换空间
-      await navigateToSpace(newSpaceId, currentSpace?.type || 'private', spaces);
+      // 获取目标空间的类型
+      const targetSpace = spaces.find(s => s.id === newSpaceId);
+      const targetSpaceType = targetSpace?.type || 'private';
       
-      // 重新加载数据
-      await Promise.all([
-        fetchClips(),
-        fetchSpaceStats()
-      ]);
+      // 切换空间时使用目标空间的类型
+      navigateToSpace(newSpaceId, targetSpaceType, spaces);
+      
     } catch (error) {
       message.error('切换空间失败');
     }
-  }, [spaces, navigateToSpace, fetchClips, fetchSpaceStats]);
+  }, [spaces, navigateToSpace]);
 
   const handleUpload = async (data: UploadClipRequest) => {
     if (!spaceId) return;
@@ -638,13 +637,15 @@ const ClipsPage: React.FC = () => {
 
   const renderSpaceSelector = () => (
     <div className={styles.spaceSelector}>
-      <SpaceList
-        spaces={spaces}
-        currentUser={currentUser}
-        value={spaceId}
-        loading={loadingSpaces}
-        onChange={handleSpaceChange}
-      />
+      {currentUser && (
+        <SpaceList
+          spaces={spaces}
+          currentUser={currentUser}
+          value={spaceId}
+          loading={loadingSpaces}
+          onChange={handleSpaceChange}
+        />
+      )}
       {currentUser && (
         <Button
           type="primary"
@@ -804,8 +805,13 @@ const ClipsPage: React.FC = () => {
                       navigate('/clips', { replace: true });
                     }
                   } else {
-                    await fetchSpaceStats();
-                    await fetchClips();
+                    // 更新空间设置后，重新获取所有相关数据
+                    await Promise.all([
+                      fetchSpaces(),        // 重新获取空间列表
+                      fetchSpaceStats(),    // 重新获取空间统计信息
+                      fetchClips()          // 重新获取剪贴板内容
+                    ]);
+                    setShowSettings(false); // 关闭设置弹窗
                   }
                 } catch (error) {
                   console.error('更新空间数据失败:', error);

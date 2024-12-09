@@ -55,7 +55,7 @@ func setupV1Routes(api fiber.Router) {
 	publicSpaceRoutes.Get("/stats", spaces.HandlePublicSpaceStats)
 
 	// 添加获取空间列表的公开路由
-	api.Get("/spaces/list", spaces.HandleListSpaces)
+	api.Get("/spaces/public-list", spaces.HandleListSpaces)
 
 	// 2. 认证路由 - 不需要token
 	authRoutes := api.Group("/auth")

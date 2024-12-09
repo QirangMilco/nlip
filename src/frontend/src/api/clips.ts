@@ -45,7 +45,7 @@ export const uploadClip = async (data: FormData): Promise<Clip> => {
 
 // 删除剪贴板内容
 export const deleteClip = async (spaceId: string, clipId: string, spaceType: string): Promise<void> => {
-  // 检查是否有权限删除
+  // 从 Redux store 获取认证状态
   if (spaceType === 'public' && !store.getState().auth.token) {
     throw new Error('游客无权删除剪贴板内容');
   }

@@ -2,14 +2,15 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import { Space } from '@/store/types';
+import { store } from '@/store';
 
 export function useSpaceNavigation() {
   const navigate = useNavigate();
 
   const handleSpaceChange = useCallback((spaceId: string, spaceType: string, spaces: Space[]) => {
     const targetSpace = spaces.find(s => s.id === spaceId);
-    const userId = localStorage.getItem('userId');
-    const isAdmin = localStorage.getItem('isAdmin') === 'true';
+    const userId = store.getState().auth.user?.id;
+    const isAdmin = store.getState().auth.user?.isAdmin;
 
     if (!targetSpace) {
       message.error('空间不存在');

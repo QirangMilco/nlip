@@ -2,7 +2,7 @@ import axios from 'axios';
 import { message } from 'antd';
 import { store } from '@/store';
 import { clearAuth } from '@/store/slices/authSlice';
-import { isPublicRoute } from '@/constants/routes';
+// import { isPublicRoute } from '@/constants/routes';
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -15,15 +15,10 @@ const http = axios.create({
 // 请求拦截器
 http.interceptors.request.use(
   (config) => {
-    // 检查是否是无需token的路由
-    const noAuthRequired = isPublicRoute(config.url || '');
-
-    if (!noAuthRequired) {
-      // 从 Redux store 获取 token
-      const token = store.getState().auth.token;
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    // 从 Redux store 获取 token
+    const token = store.getState().auth.token;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     
     return config;

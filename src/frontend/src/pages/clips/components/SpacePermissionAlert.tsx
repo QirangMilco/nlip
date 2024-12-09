@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert } from 'antd';
 import { Space } from '@/store/types';
+import { store } from '@/store';
 
 interface SpacePermissionAlertProps {
   space: Space;
@@ -16,7 +17,7 @@ const SpacePermissionAlert: React.FC<SpacePermissionAlertProps> = ({
   if (!space) return null;
 
   const isPublicSpace = space.type === 'public';
-  const isOwner = space.ownerId === localStorage.getItem('userId');
+  const isOwner = space.ownerId === store.getState().auth.user?.id;
 
   const getAlertType = () => {
     if (isAdmin) return 'success';

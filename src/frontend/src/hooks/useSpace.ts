@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Space } from '@/store/slices/spaceSlice';
 import { CreateSpaceRequest, UpdateSpaceRequest } from '@/store/types';
 import * as spaceApi from '@/api/spaces';
-
+import { store } from '@/store';
 // 定义权限类型
 export type SpacePermission = 'edit' | 'view';
 
@@ -27,8 +27,8 @@ export function useSpace() {
       // 处理权限信息，确保类型正确
       const spacesWithPermissions = data.map(space => ({
         ...space,
-        isOwner: space.ownerId === localStorage.getItem('userId'),
-        permission: space.invitedUsers?.[localStorage.getItem('userId') || ''] as SpacePermission | undefined
+        isOwner: space.ownerId === store.getState().auth.user?.id,
+        permission: space.invitedUsers?.[store.getState().auth.user?.id || ''] as SpacePermission | undefined
       }));
 
       setSpaces(spacesWithPermissions);
@@ -43,7 +43,7 @@ export function useSpace() {
   // 检查用户是否有权限执行特定操作
   const checkPermission = useCallback((spaceId: string, spaceType: string, requiredPermission: SpacePermission = 'edit') => {
     const space = spaces.find(s => s.id === spaceId);
-    const isAdmin = localStorage.getItem('isAdmin') === 'true';
+    const isAdmin = store.getState().auth.user?.isAdmin;
     
     if (!space) return false;
     

@@ -1,9 +1,16 @@
 import http from './http';
 import { CreateSpaceRequest, UpdateSpaceRequest, SpaceStats } from '@/store/types';
 import { Space } from '@/store/slices/spaceSlice';
+import { store } from '@/store';
 
 export const listSpaces = async (): Promise<Space[]> => {
-  const response = await http.get('/spaces/list');
+  // 检查用户是否已登录
+  const isAuthenticated = !!store.getState().auth.token;
+  
+  // 根据用户登录状态选择不同的API端点
+  const endpoint = isAuthenticated ? '/spaces/list' : '/spaces/public-list';
+  
+  const response = await http.get(endpoint);
   return response.data.spaces;
 };
 
