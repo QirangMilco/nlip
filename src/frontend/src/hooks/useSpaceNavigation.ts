@@ -20,7 +20,7 @@ export function useSpaceNavigation() {
     // 检查访问权限
     const isPublicSpace = spaceType === 'public';
     const isOwner = targetSpace.ownerId === userId;
-    const hasPermission = targetSpace.invitedUsers?.[userId || ''];
+    const hasPermission = targetSpace.collaborators?.find((collaborator) => collaborator.id === userId)?.permission === 'edit';
 
     if (!isPublicSpace && !isOwner && !hasPermission && !isAdmin) {
       message.error('您没有权限访问此空间');

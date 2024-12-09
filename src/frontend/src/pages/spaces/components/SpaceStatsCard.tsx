@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Progress, Tooltip, Typography, Space } from 'antd';
 import { InfoCircleOutlined, TeamOutlined, FieldTimeOutlined } from '@ant-design/icons';
 import { Space as SpaceType } from '@/store/types';
+import CollaboratorManagement from './CollaboratorManagement';
 
 const { Text } = Typography;
 
@@ -9,12 +10,13 @@ interface SpaceStatsProps {
   space: SpaceType;
   clipCount: number;
   loading: boolean;
+  onSpaceUpdate: () => void;
 }
 
-const SpaceStats: React.FC<SpaceStatsProps> = ({ space, clipCount, loading }) => {
+const SpaceStats: React.FC<SpaceStatsProps> = ({ space, clipCount, loading, onSpaceUpdate }) => {
   const isPublicSpace = space.type === 'public';
   const usagePercent = Math.round((clipCount / space.maxItems) * 100);
-  const collaboratorCount = space.invitedUsers ? Object.keys(space.invitedUsers).length : 0;
+  const collaboratorCount = space.collaborators ? space.collaborators.length : 0;
 
   return (
     <Card size="small" className="space-stats" loading={loading}>
@@ -54,6 +56,15 @@ const SpaceStats: React.FC<SpaceStatsProps> = ({ space, clipCount, loading }) =>
             </div>
           </Tooltip>
         </div>
+
+        {!isPublicSpace && (
+          <div style={{ marginTop: 16 }}>
+            <CollaboratorManagement 
+              space={space} 
+              onCollaboratorUpdate={onSpaceUpdate}
+            />
+          </div>
+        )}
       </Space>
     </Card>
   );

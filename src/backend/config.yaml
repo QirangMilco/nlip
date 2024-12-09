@@ -1,0 +1,52 @@
+# 基础配置
+jwt_secret: your-super-secret-key-at-least-32-chars
+
+# 文件类型配置
+file_types:
+  allow_list:
+    - txt
+    - md
+    - json
+    - jpg
+    - png
+    - pdf
+  deny_list:
+    - exe
+    - dll
+    - sh
+    - bat
+
+# 以下配置可选
+# app_env: development
+# token_expiry: 24h
+# upload_dir: ./uploads
+# max_file_size: 10485760  # 10MB
+# server_port: 3000
+
+# 域名配置（可选）
+# domain: localhost
+# https_enabled: false
+# frontend_url: http://localhost:3000
+
+# 文件上传配置（可选）
+# file_upload:
+#   max_size: 10485760  # 10MB
+#   allowed_types:
+#     - image/*
+#     - text/*
+#     - application/pdf
+
+# 空间配置（可选）
+# space:
+#   default_max_items: 20
+#   default_retention_days: 7
+#   max_items_limit: 100
+#   max_retention_days_limit: 30
+
+# 邮件配置（可选）
+# email:
+#   host: smtp.example.com
+#   port: 587
+#   username: your@email.com
+#   password: your-password
+#   from: noreply@example.com

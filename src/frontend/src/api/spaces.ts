@@ -58,13 +58,28 @@ export const removeCollaborator = async (
 
 export const inviteCollaborator = async (
   spaceId: string,
-  collaboratorId: string,
+  email: string,
   permission: 'edit' | 'view'
 ) => {
   const response = await http.post(`/spaces/${spaceId}/collaborators/invite`, {
-    collaboratorId,
+    email,
     permission,
   });
+  return {
+    inviteLink: response.data.inviteLink,
+    token: response.data.token
+  };
+};
+
+// 验证邀请token
+export const verifyInviteToken = async (token: string) => {
+  const response = await http.get(`/spaces/collaborators/verify-invite/${token}`);
+  return response.data;
+};
+
+// 接受邀请
+export const acceptInvite = async (token: string) => {
+  const response = await http.post(`/spaces/collaborators/accept-invite`, { token });
   return response.data;
 };
 

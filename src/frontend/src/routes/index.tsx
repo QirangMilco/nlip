@@ -5,6 +5,7 @@ import RegisterPage from '@/pages/auth/RegisterPage';
 import ClipsPage from '@/pages/clips/ClipsPage';
 import PrivateRoute from '@/components/auth/PrivateRoute';
 import ChangePasswordPage from '@/pages/auth/ChangePasswordPage';
+import InviteConfirmation from '@/pages/auth/InviteConfirmation';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -40,6 +41,16 @@ const AppRoutes: React.FC = () => {
         element={
           <PrivateRoute>
             <ChangePasswordPage />
+          </PrivateRoute>
+        }
+      />
+
+      {/* 邀请确认页面不需要登录就能访问 */}
+      <Route
+        path="/spaces/invite/:token"
+        element={
+          <PrivateRoute>
+            <InviteConfirmation />
           </PrivateRoute>
         }
       />

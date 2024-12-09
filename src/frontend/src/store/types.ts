@@ -36,14 +36,22 @@ export interface ChangePasswordResponse {
 }
 
 // 空间相关类型
+export interface Collaborator {
+  id: string;
+  email: string;
+  username: string;
+  permission: 'edit' | 'view';
+}
+
 export interface Space {
   id: string;
   name: string;
-  type: 'public' | 'private';
+  description?: string;
+  type: 'private' | 'public';
   ownerId: string;
   maxItems: number;
   retentionDays: number;
-  invitedUsers?: Record<string, 'edit' | 'view'>;
+  collaborators?: Collaborator[];
   createdAt: string;
   updatedAt: string;
 }

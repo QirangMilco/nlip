@@ -73,7 +73,7 @@ func main() {
 	cleaner.StartCleanupTask()
 
 	// 记录启动日志
-	appLogger.Info("服务器启动在端口 :3000")
+	appLogger.Info("服务器启动在端口 :%s", config.AppConfig.ServerPort)
 
 	// 优雅关闭处理
 	sigChan := make(chan os.Signal, 1)
@@ -97,7 +97,7 @@ func main() {
 	}()
 
 	// 启动服务器
-	if err := app.Listen(":3000"); err != nil {
+	if err := app.Listen(":" + config.AppConfig.ServerPort); err != nil {
 		appLogger.Error("服务器启动失败: %v", err)
 		log.Fatal(err)
 	}

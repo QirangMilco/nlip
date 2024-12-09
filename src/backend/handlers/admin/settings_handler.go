@@ -28,10 +28,10 @@ type ServerSettings struct {
 
 // HandleGetSettings 获取当前服务器设置
 func HandleGetSettings(c *fiber.Ctx) error {
-	isAdmin := c.Locals("isAdmin").(bool)
-	if !isAdmin {
-		return fiber.NewError(fiber.StatusForbidden, "需要管理员权限")
-	}
+	// isAdmin := c.Locals("isAdmin").(bool)
+	// if !isAdmin {
+	// 	return fiber.NewError(fiber.StatusForbidden, "需要管理员权限")
+	// }
 
 	settings := ServerSettings{
 		FileTypes: struct {

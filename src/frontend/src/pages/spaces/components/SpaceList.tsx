@@ -35,8 +35,13 @@ const SpaceList: React.FC<SpaceListProps> = ({
       }
     });
 
-    // 按名称排序
-    const sortByName = (a: Space, b: Space) => a.name.localeCompare(b.name);
+    // 修改排序逻辑，让 public-space 置顶
+    const sortByName = (a: Space, b: Space) => {
+      if (a.id === 'public-space') return -1;
+      if (b.id === 'public-space') return 1;
+      return a.name.localeCompare(b.name);
+    };
+
     return {
       publicSpaces: publicSpaces.sort(sortByName),
       ownedSpaces: ownedSpaces.sort(sortByName),
@@ -48,6 +53,13 @@ const SpaceList: React.FC<SpaceListProps> = ({
     return space.type === 'public' ? 
       <GlobalOutlined style={{ marginRight: 8 }} /> : 
       <LockOutlined style={{ marginRight: 8 }} />;
+  };
+
+  const renderSpaceName = (space: Space) => {
+    if (space.id === 'public-space') {
+      return `${space.name}（默认）`;
+    }
+    return space.name;
   };
 
   return (
@@ -64,9 +76,9 @@ const SpaceList: React.FC<SpaceListProps> = ({
         <Select.OptGroup label="公共空间">
           {categorizedSpaces.publicSpaces.map(space => (
             <Select.Option key={space.id} value={space.id}>
-              <Tooltip title={`公共空间 - ${space.name}`}>
+              <Tooltip title={`公共空间 - ${renderSpaceName(space)}`}>
                 {renderSpaceIcon(space)}
-                {space.name}
+                {renderSpaceName(space)}
               </Tooltip>
             </Select.Option>
           ))}

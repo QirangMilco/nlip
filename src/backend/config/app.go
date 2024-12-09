@@ -1,313 +1,353 @@
 package config
 
 import (
-    "os"
-    "path/filepath"
-    "time"
-    "nlip/utils/logger"
-    "encoding/json"
-    "strings"
-    "sync"
+	"encoding/json"
+	"fmt"
+	"nlip/utils/logger"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-    AppEnv      string
-    JWTSecret   string
-    TokenExpiry time.Duration
-    UploadDir   string
-    MaxFileSize int64
-    ServerPort  string
-    FileUpload struct {
-        MaxSize       int64    `json:"max_size"`
-        AllowedTypes  []string `json:"allowed_types"`
-    }
-    FileTypes struct {
-        AllowList []string `json:"allow_list"`
-        DenyList  []string `json:"deny_list"`
-    } `json:"file_types"`
-    Space struct {
-        DefaultMaxItems          int `json:"default_max_items"`      // 空间默认最大条目数
-        DefaultRetentionDays    int `json:"default_retention_days"` // 空间默认保留天数
-        MaxItemsLimit          int `json:"max_items_limit"`        // 允许设置的空间最大条目数上限
-        MaxRetentionDaysLimit  int `json:"max_retention_days_limit"` // 允许设置的空间保留天数上限
-    } `json:"space"`
+	AppEnv      string        `json:"app_env"`
+	JWTSecret   string        `json:"jwt_secret"`
+	TokenExpiry time.Duration `json:"token_expiry"`
+	UploadDir   string        `json:"upload_dir"`
+	MaxFileSize int64         `json:"max_file_size"`
+	ServerPort  string        `json:"server_port"`
+	Domain      string        `json:"domain"`
+	FrontendURL string        `json:"frontend_url"`
+
+	FileUpload struct {
+		MaxSize      int64    `json:"max_size"`
+		AllowedTypes []string `json:"allowed_types"`
+	} `json:"file_upload"`
+
+	FileTypes struct {
+		AllowList []string `json:"allow_list"`
+		DenyList  []string `json:"deny_list"`
+	} `json:"file_types"`
+
+	Space struct {
+		DefaultMaxItems       int `json:"default_max_items"`
+		DefaultRetentionDays  int `json:"default_retention_days"`
+		MaxItemsLimit         int `json:"max_items_limit"`
+		MaxRetentionDaysLimit int `json:"max_retention_days_limit"`
+	} `json:"space"`
+
+	Email struct {
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+		From     string `json:"from"`
+	} `json:"email"`
 }
 
 var (
-    AppConfig   Config
-    configMutex sync.Mutex
+	AppConfig   Config
+	configMutex sync.Mutex
 )
 
 // 添加默认支持的文件类型
 var defaultAllowedExtensions = []string{
-    // 文本文件
-    "txt", "md", "json", "xml", "csv", "log",
-    "html", "htm", "css", "js", "ts", "yaml", "yml",
-    // 图片文件
-    "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg",
+	// 文本文件
+	"txt", "md", "json", "xml", "csv", "log",
+	"html", "htm", "css", "js", "ts", "yaml", "yml",
+	// 图片文件
+	"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg",
 }
 
 // LoadConfig 加载配置
 func LoadConfig() {
-    // 获取当前工作目录
-    workDir, err := os.Getwd()
-    if err != nil {
-        logger.Error("获取工作目录失败: %v", err)
-        workDir = "."
-    }
+	// 获取工作目录
+	workDir, err := os.Getwd()
+	if err != nil {
+		logger.Error("获取工作目录失败: %v", err)
+		workDir = "."
+	}
 
-    // 设置默认配置
-    AppConfig = Config{
-        AppEnv:      getEnv("APP_ENV", "development"),
-        JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
-        TokenExpiry: 24 * time.Hour,
-        UploadDir:   getEnv("UPLOAD_DIR", filepath.Join(workDir, "uploads")),
-        MaxFileSize: 10 * 1024 * 1024, // 10MB
-        ServerPort:  getEnv("PORT", "3000"),
-    }
+	// 设置基础默认配置
+	AppConfig = Config{
+		AppEnv:      getEnv("APP_ENV", "development"),
+		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
+		TokenExpiry: 24 * time.Hour,
+		UploadDir:   getEnv("UPLOAD_DIR", filepath.Join(workDir, "uploads")),
+		MaxFileSize: 10 * 1024 * 1024, // 10MB
+		ServerPort:  getEnv("PORT", "3000"),
+		FileUpload: struct {
+			MaxSize      int64    `json:"max_size"`
+			AllowedTypes []string `json:"allowed_types"`
+		}{
+			MaxSize: 10 * 1024 * 1024,
+			AllowedTypes: []string{
+				"image/*",
+				"text/*",
+				"application/pdf",
+			},
+		},
+		Space: struct {
+			DefaultMaxItems       int `json:"default_max_items"`
+			DefaultRetentionDays  int `json:"default_retention_days"`
+			MaxItemsLimit         int `json:"max_items_limit"`
+			MaxRetentionDaysLimit int `json:"max_retention_days_limit"`
+		}{
+			DefaultMaxItems:       20,
+			DefaultRetentionDays:  7,
+			MaxItemsLimit:         100,
+			MaxRetentionDaysLimit: 30,
+		},
+		FileTypes: struct {
+			AllowList []string `json:"allow_list"`
+			DenyList  []string `json:"deny_list"`
+		}{
+			AllowList: defaultAllowedExtensions,
+			DenyList:  []string{},
+		},
+	}
 
-    // 设置文件上传配置
-    AppConfig.FileUpload = struct {
-        MaxSize      int64    `json:"max_size"`
-        AllowedTypes []string `json:"allowed_types"`
-    }{
-        MaxSize: 10 * 1024 * 1024, // 10MB
-        AllowedTypes: []string{
-            "image/*",
-            "text/*",
-            "application/pdf",
-        },
-    }
+	// 根据环境加载配置
+	switch AppConfig.AppEnv {
+	case "development":
+		loadDevConfig()
+	case "production":
+		loadProdConfig()
+	case "test":
+		loadTestConfig()
+	}
 
-    // 设置默认的文件类型配置
-    AppConfig.FileTypes.AllowList = defaultAllowedExtensions
-    AppConfig.FileTypes.DenyList = []string{}
+	// 确保配置值在合理范围内
+	validateAndAdjustConfig()
 
-    // 设置空间相关默认配置
-    AppConfig.Space = struct {
-        DefaultMaxItems         int `json:"default_max_items"`
-        DefaultRetentionDays    int `json:"default_retention_days"`
-        MaxItemsLimit          int `json:"max_items_limit"`
-        MaxRetentionDaysLimit  int `json:"max_retention_days_limit"`
-    }{
-        DefaultMaxItems:         20,    // 默认最大条目数
-        DefaultRetentionDays:    7,     // 默认保留7天
-        MaxItemsLimit:          100,   // 最大允许100条
-        MaxRetentionDaysLimit:  30,    // 最大允许保留30天
-    }
+	// 设置域名相关配置
+	setupDomainConfig()
 
-    // 从配置文件加载自定义文件类型设置
-    if configFile := getEnv("CONFIG_FILE", "config.dev.json"); configFile != "" {
-        if data, err := os.ReadFile(configFile); err == nil {
-            var fileConfig struct {
-                FileTypes struct {
-                    AllowList []string `json:"allow_list"`
-                    DenyList  []string `json:"deny_list"`
-                } `json:"file_types"`
-            }
-            
-            if err := json.Unmarshal(data, &fileConfig); err == nil {
-                // 如果配置文件中指定了白名单，则覆盖默认配置
-                if len(fileConfig.FileTypes.AllowList) > 0 {
-                    AppConfig.FileTypes.AllowList = fileConfig.FileTypes.AllowList
-                }
-                // 添加黑名单
-                AppConfig.FileTypes.DenyList = fileConfig.FileTypes.DenyList
-            }
-        }
-    }
+	// 规范化文件类型列表
+	normalizeFileTypes()
 
-    // 从配置文件加载自定义空间设置
-    if configFile := getEnv("CONFIG_FILE", "config.dev.json"); configFile != "" {
-        if data, err := os.ReadFile(configFile); err == nil {
-            var spaceConfig struct {
-                Space struct {
-                    DefaultMaxItems         int `json:"default_max_items"`
-                    DefaultRetentionDays    int `json:"default_retention_days"`
-                    MaxItemsLimit          int `json:"max_items_limit"`
-                    MaxRetentionDaysLimit  int `json:"max_retention_days_limit"`
-                } `json:"space"`
-            }
-            
-            if err := json.Unmarshal(data, &spaceConfig); err == nil {
-                // 先更新上限值
-                if spaceConfig.Space.MaxItemsLimit > 0 {
-                    AppConfig.Space.MaxItemsLimit = spaceConfig.Space.MaxItemsLimit
-                }
-                if spaceConfig.Space.MaxRetentionDaysLimit > 0 {
-                    AppConfig.Space.MaxRetentionDaysLimit = spaceConfig.Space.MaxRetentionDaysLimit
-                }
-
-                // 更新默认值，确保不超过上限
-                if spaceConfig.Space.DefaultMaxItems > 0 {
-                    if spaceConfig.Space.DefaultMaxItems > AppConfig.Space.MaxItemsLimit {
-                        AppConfig.Space.DefaultMaxItems = AppConfig.Space.MaxItemsLimit
-                    } else {
-                        AppConfig.Space.DefaultMaxItems = spaceConfig.Space.DefaultMaxItems
-                    }
-                }
-                if spaceConfig.Space.DefaultRetentionDays > 0 {
-                    if spaceConfig.Space.DefaultRetentionDays > AppConfig.Space.MaxRetentionDaysLimit {
-                        AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
-                    } else {
-                        AppConfig.Space.DefaultRetentionDays = spaceConfig.Space.DefaultRetentionDays
-                    }
-                }
-            }
-        }
-    }
-
-    // 最后确保默认值不超过上限
-    if AppConfig.Space.DefaultMaxItems > AppConfig.Space.MaxItemsLimit {
-        AppConfig.Space.DefaultMaxItems = AppConfig.Space.MaxItemsLimit
-    }
-    if AppConfig.Space.DefaultRetentionDays > AppConfig.Space.MaxRetentionDaysLimit {
-        AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
-    }
-
-    // 规范化文件扩展名格式
-    for i, ext := range AppConfig.FileTypes.AllowList {
-        AppConfig.FileTypes.AllowList[i] = strings.ToLower(strings.TrimPrefix(ext, "."))
-    }
-    for i, ext := range AppConfig.FileTypes.DenyList {
-        AppConfig.FileTypes.DenyList[i] = strings.ToLower(strings.TrimPrefix(ext, "."))
-    }
-
-    // 根据环境加载不同配置
-    switch AppConfig.AppEnv {
-    case "development":
-        loadDevConfig()
-    case "production":
-        loadProdConfig()
-    case "test":
-        loadTestConfig()
-    }
-
-    logger.Info("配置加载完成: env=%s, port=%s", AppConfig.AppEnv, AppConfig.ServerPort)
+	logger.Info("配置加载完成: env=%s, port=%s, domain=%s",
+		AppConfig.AppEnv,
+		AppConfig.ServerPort,
+		AppConfig.Domain,
+	)
 }
 
-// 加载开发环境配置
+// validateAndAdjustConfig 验证并调整配置值
+func validateAndAdjustConfig() {
+	// 确保空间配置在合理范围内
+	if AppConfig.Space.DefaultMaxItems > AppConfig.Space.MaxItemsLimit {
+		AppConfig.Space.DefaultMaxItems = AppConfig.Space.MaxItemsLimit
+	}
+	if AppConfig.Space.DefaultRetentionDays > AppConfig.Space.MaxRetentionDaysLimit {
+		AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
+	}
+}
+
+// setupDomainConfig 设置域名相关配置
+func setupDomainConfig() {
+	protocol := "http"
+	if getEnv("HTTPS_ENABLED", "false") == "true" {
+		protocol = "https"
+	}
+
+	domain := getEnv("DOMAIN", "localhost")
+	port := AppConfig.ServerPort
+
+	if (protocol == "http" && port == "80") || (protocol == "https" && port == "443") {
+		AppConfig.Domain = fmt.Sprintf("%s://%s", protocol, domain)
+	} else {
+		AppConfig.Domain = fmt.Sprintf("%s://%s:%s", protocol, domain, port)
+	}
+
+	AppConfig.FrontendURL = getEnv("FRONTEND_URL", AppConfig.Domain)
+}
+
+// normalizeFileTypes 规范化文件类型列表
+func normalizeFileTypes() {
+	for i, ext := range AppConfig.FileTypes.AllowList {
+		AppConfig.FileTypes.AllowList[i] = strings.ToLower(strings.TrimPrefix(ext, "."))
+	}
+	for i, ext := range AppConfig.FileTypes.DenyList {
+		AppConfig.FileTypes.DenyList[i] = strings.ToLower(strings.TrimPrefix(ext, "."))
+	}
+}
+
+// loadDevConfig 加载开发环境配置
 func loadDevConfig() {
-    // 从配置文件加载
-    configFile := getEnv("CONFIG_FILE", "config.dev.json")
-    if _, err := os.Stat(configFile); err == nil {
-        file, err := os.ReadFile(configFile)
-        if err != nil {
-            logger.Error("读取配置文件失败: %v", err)
-            return
-        }
+	// 默认使用 yaml 配置
+	configFile := getEnv("CONFIG_FILE", "config.yaml")
+	if _, err := os.Stat(configFile); err != nil {
+		// 如果 yaml 不存在，尝试读取 json 配置
+		configFile = "config.dev.json"
+	}
 
-        var config struct {
-            JWTSecret   string        `json:"jwt_secret"`
-            TokenExpiry string        `json:"token_expiry"`
-            UploadDir   string        `json:"upload_dir"`
-            MaxFileSize int64         `json:"max_file_size"`
-        }
+	if _, err := os.Stat(configFile); err == nil {
+		file, err := os.ReadFile(configFile)
+		if err != nil {
+			logger.Error("读取配置文件失败: %v", err)
+			return
+		}
 
-        if err := json.Unmarshal(file, &config); err != nil {
-            logger.Error("解析配置文件失败: %v", err)
-            return
-        }
+		var config map[string]interface{}
+		if strings.HasSuffix(configFile, ".yaml") || strings.HasSuffix(configFile, ".yml") {
+			if err = yaml.Unmarshal(file, &config); err != nil {
+				logger.Error("解析YAML配置文件失败: %v", err)
+				return
+			}
+		} else {
+			if err = json.Unmarshal(file, &config); err != nil {
+				logger.Error("解析JSON配置文件失败: %v", err)
+				return
+			}
+		}
 
-        // 更新配置
-        if config.JWTSecret != "" {
-            AppConfig.JWTSecret = config.JWTSecret
-        }
-        if config.TokenExpiry != "" {
-            if duration, err := time.ParseDuration(config.TokenExpiry); err == nil {
-                AppConfig.TokenExpiry = duration
-            }
-        }
-        if config.UploadDir != "" {
-            AppConfig.UploadDir = config.UploadDir
-        }
-        if config.MaxFileSize > 0 {
-            AppConfig.MaxFileSize = config.MaxFileSize
-        }
+		// 更新配置
+		if jwtSecret, ok := config["jwt_secret"].(string); ok && jwtSecret != "" {
+			AppConfig.JWTSecret = jwtSecret
+		}
+		if tokenExpiry, ok := config["token_expiry"].(string); ok && tokenExpiry != "" {
+			if duration, err := time.ParseDuration(tokenExpiry); err == nil {
+				AppConfig.TokenExpiry = duration
+			}
+		}
+		if uploadDir, ok := config["upload_dir"].(string); ok && uploadDir != "" {
+			AppConfig.UploadDir = uploadDir
+		}
+		if maxFileSize, ok := config["max_file_size"].(float64); ok && maxFileSize > 0 {
+			AppConfig.MaxFileSize = int64(maxFileSize)
+		}
 
-        logger.Debug("从配置文件加载开发环境配置: %s", configFile)
-    }
+		logger.Debug("从配置文件加载开发环境配置: %s", configFile)
+	}
 }
 
 // 加载生产环境配置
 func loadProdConfig() {
-    // 生产环境优先使用环境变量
-    if port := os.Getenv("PORT"); port != "" {
-        AppConfig.ServerPort = port
-    }
-    if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
-        AppConfig.JWTSecret = jwtSecret
-    }
-    if uploadDir := os.Getenv("UPLOAD_DIR"); uploadDir != "" {
-        AppConfig.UploadDir = uploadDir
-    }
+	// 先尝试从配置文件加载
+	configFile := getEnv("CONFIG_FILE", "config.yaml")
+	if _, err := os.Stat(configFile); err == nil {
+		file, err := os.ReadFile(configFile)
+		if err == nil {
+			var config map[string]interface{}
+			if strings.HasSuffix(configFile, ".yaml") || strings.HasSuffix(configFile, ".yml") {
+				err = yaml.Unmarshal(file, &config)
+			} else {
+				err = json.Unmarshal(file, &config)
+			}
+			if err != nil {
+				logger.Error("解析配置文件失败: %v", err)
+			}
+		}
+	}
+
+	// 环境变量优先级高于配置文件
+	if port := os.Getenv("PORT"); port != "" {
+		AppConfig.ServerPort = port
+	}
+	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
+		AppConfig.JWTSecret = jwtSecret
+	}
+	if uploadDir := os.Getenv("UPLOAD_DIR"); uploadDir != "" {
+		AppConfig.UploadDir = uploadDir
+	}
+	if maxFileSize := os.Getenv("MAX_FILE_SIZE"); maxFileSize != "" {
+		if size, err := strconv.ParseInt(maxFileSize, 10, 64); err == nil {
+			AppConfig.MaxFileSize = size
+		}
+	}
+	if emailHost := os.Getenv("EMAIL_HOST"); emailHost != "" {
+		AppConfig.Email.Host = emailHost
+	}
+	if emailPort := os.Getenv("EMAIL_PORT"); emailPort != "" {
+		if port, err := strconv.Atoi(emailPort); err == nil {
+			AppConfig.Email.Port = port
+		}
+	}
+	if emailUser := os.Getenv("EMAIL_USERNAME"); emailUser != "" {
+		AppConfig.Email.Username = emailUser
+	}
+	if emailPass := os.Getenv("EMAIL_PASSWORD"); emailPass != "" {
+		AppConfig.Email.Password = emailPass
+	}
+	if emailFrom := os.Getenv("EMAIL_FROM"); emailFrom != "" {
+		AppConfig.Email.From = emailFrom
+	}
+
+	logger.Info("生产环境配置加载完成")
 }
 
 // 加载测试环境配置
 func loadTestConfig() {
-    AppConfig.UploadDir = filepath.Join(os.TempDir(), "nlip-test-uploads")
-    AppConfig.ServerPort = "0" // 随机端口
+	AppConfig.UploadDir = filepath.Join(os.TempDir(), "nlip-test-uploads")
+	AppConfig.ServerPort = "0" // 随机端口
 }
 
+// getEnv 获取环境变量，如果不存在则返回默认值
 func getEnv(key, defaultValue string) string {
-    if value := os.Getenv(key); value != "" {
-        return value
-    }
-    return defaultValue
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // 添加更新配置的函数
 func UpdateConfig(updates map[string]interface{}) error {
-    // 使用互斥锁保护配置更新
-    configMutex.Lock()
-    defer configMutex.Unlock()
+	// 使用互斥锁保护配置更新
+	configMutex.Lock()
+	defer configMutex.Unlock()
 
-    if fileTypes, ok := updates["file_types"].(map[string]interface{}); ok {
-        if allowList, ok := fileTypes["allow_list"].([]string); ok {
-            AppConfig.FileTypes.AllowList = allowList
-        }
-        if denyList, ok := fileTypes["deny_list"].([]string); ok {
-            AppConfig.FileTypes.DenyList = denyList
-        }
-    }
+	if fileTypes, ok := updates["file_types"].(map[string]interface{}); ok {
+		if allowList, ok := fileTypes["allow_list"].([]string); ok {
+			AppConfig.FileTypes.AllowList = allowList
+		}
+		if denyList, ok := fileTypes["deny_list"].([]string); ok {
+			AppConfig.FileTypes.DenyList = denyList
+		}
+	}
 
-    if spaceSettings, ok := updates["space_defaults"].(map[string]interface{}); ok {
-        // 先处理上限值的更新
-        if maxItemsLimit, ok := spaceSettings["max_items_limit"].(int); ok {
-            AppConfig.Space.MaxItemsLimit = maxItemsLimit
-        }
-        if maxRetentionDaysLimit, ok := spaceSettings["max_retention_days_limit"].(int); ok {
-            AppConfig.Space.MaxRetentionDaysLimit = maxRetentionDaysLimit
-        }
+	if spaceSettings, ok := updates["space_defaults"].(map[string]interface{}); ok {
+		// 先处理上限值的更新
+		if maxItemsLimit, ok := spaceSettings["max_items_limit"].(int); ok {
+			AppConfig.Space.MaxItemsLimit = maxItemsLimit
+		}
+		if maxRetentionDaysLimit, ok := spaceSettings["max_retention_days_limit"].(int); ok {
+			AppConfig.Space.MaxRetentionDaysLimit = maxRetentionDaysLimit
+		}
 
-        // 再处理默认值的更新，确保不超过上限
-        if maxItems, ok := spaceSettings["max_items"].(int); ok {
-            if maxItems <= AppConfig.Space.MaxItemsLimit {
-                AppConfig.Space.DefaultMaxItems = maxItems
-            } else {
-                AppConfig.Space.DefaultMaxItems = AppConfig.Space.MaxItemsLimit
-            }
-        }
-        if retentionDays, ok := spaceSettings["retention_days"].(int); ok {
-            if retentionDays <= AppConfig.Space.MaxRetentionDaysLimit {
-                AppConfig.Space.DefaultRetentionDays = retentionDays
-            } else {
-                AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
-            }
-        }
-    }
+		// 再处理默认值的更新，确保不超过上限
+		if maxItems, ok := spaceSettings["max_items"].(int); ok {
+			if maxItems <= AppConfig.Space.MaxItemsLimit {
+				AppConfig.Space.DefaultMaxItems = maxItems
+			} else {
+				AppConfig.Space.DefaultMaxItems = AppConfig.Space.MaxItemsLimit
+			}
+		}
+		if retentionDays, ok := spaceSettings["retention_days"].(int); ok {
+			if retentionDays <= AppConfig.Space.MaxRetentionDaysLimit {
+				AppConfig.Space.DefaultRetentionDays = retentionDays
+			} else {
+				AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
+			}
+		}
+	}
 
-    // 保存更新后的配置到文件
-    return SaveConfig()
+	// 保存更新后的配置到文件
+	return SaveConfig()
 }
 
-// 添加保存配置的函数
+// SaveConfig 保存配置到文件
 func SaveConfig() error {
-    configData, err := json.MarshalIndent(AppConfig, "", "    ")
-    if err != nil {
-        return err
-    }
+	configFile := getEnv("CONFIG_FILE", "config.yaml")
+	data, err := yaml.Marshal(AppConfig)
+	if err != nil {
+		return fmt.Errorf("序列化配置失败: %v", err)
+	}
 
-    configFile := getEnv("CONFIG_FILE", "config.dev.json")
-    return os.WriteFile(configFile, configData, 0644)
-} 
+	return os.WriteFile(configFile, data, 0644)
+}

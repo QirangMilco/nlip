@@ -3,14 +3,17 @@ package spaces
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"nlip/config"
 	"nlip/models/space"
 	"nlip/utils/db"
+	"nlip/utils/email"
 	"nlip/utils/id"
 	"nlip/utils/logger"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt"
 )
 
 // HandleListSpaces 处理获取空间列表
@@ -97,6 +100,11 @@ func HandleCreateSpace(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		logger.Warning("解析创建空间请求失败: %v", err)
 		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
+	}
+
+	// 设置默认值
+	if req.Type == "" {
+		req.Type = "private" // 默认创建私有空间
 	}
 
 	userID := c.Locals("userId").(string)
@@ -341,73 +349,145 @@ func HandleDeleteSpace(c *fiber.Ctx) error {
 // HandleInviteCollaborator 处理邀请协作者
 func HandleInviteCollaborator(c *fiber.Ctx) error {
 	spaceID := c.Params("id")
+	userID := c.Locals("userId").(string)
+
 	var req space.InviteCollaboratorRequest
 	if err := c.BodyParser(&req); err != nil {
 		logger.Warning("解析邀请协作者请求失败: %v", err)
 		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
 	}
 
-	userID := c.Locals("userId").(string)
-	isAdmin := c.Locals("isAdmin").(bool)
-
-	// 检查空间是否存在并获取当前信息
-	var s space.Space
-	var invitedUsersJSON string
-	err := config.DB.QueryRow(`
-		SELECT id, name, type, owner_id, invited_users
-		FROM nlip_spaces WHERE id = ?
-	`, spaceID).Scan(&s.ID, &s.Name, &s.Type, &s.OwnerID, &invitedUsersJSON)
-
+	// 验证空间所有权
+	var ownerID string
+	var spaceName string
+	err := config.DB.QueryRow("SELECT owner_id, name FROM nlip_spaces WHERE id = ?", spaceID).Scan(&ownerID, &spaceName)
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
 	} else if err != nil {
-		logger.Error("获取空间信息失败: %v", err)
-		return fiber.NewError(fiber.StatusInternalServerError, "获取空间信息失败")
+		logger.Error("查询空间失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "服务器错误")
 	}
 
-	// 检查权限
-	if !isAdmin && s.OwnerID != userID {
-		return fiber.NewError(fiber.StatusForbidden, "没有权限邀请协作者")
+	if ownerID != userID {
+		return fiber.NewError(fiber.StatusForbidden, "只有空间所有者可以邀请协作者")
 	}
 
-	// 解析现有的协作者列表
-	invitedUsers := make(map[string]string)
-	if invitedUsersJSON != "" {
-		if err := json.Unmarshal([]byte(invitedUsersJSON), &invitedUsers); err != nil {
-			logger.Error("解析协作者列表失败: %v", err)
-			return fiber.NewError(fiber.StatusInternalServerError, "处理协作者数据失败")
-		}
-	}
-
-	// 添加新协作者
-	invitedUsers[req.CollaboratorID] = req.Permission
-
-	// 序列化更新后的协作者列表
-	newInvitedUsersJSON, err := json.Marshal(invitedUsers)
-	if err != nil {
-		logger.Error("序列化协作者列表失败: %v", err)
-		return fiber.NewError(fiber.StatusInternalServerError, "处理协作者数据失败")
-	}
-
-	// 更新数据库
-	err = db.WithTransaction(config.DB, func(tx *sql.Tx) error {
-		_, err := db.ExecTx(tx, `
-			UPDATE nlip_spaces 
-			SET invited_users = ?
-			WHERE id = ?
-		`, string(newInvitedUsersJSON), spaceID)
-		return err
+	// 生成邀请令牌
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"spaceId":    spaceID,
+		"permission": req.Permission,
+		"inviterId":  userID,
+		"email":      req.Email,
+		"exp":        time.Now().Add(24 * time.Hour).Unix(),
 	})
 
+	tokenString, err := token.SignedString([]byte(config.AppConfig.JWTSecret))
 	if err != nil {
-		logger.Error("更新协作者列表失败: %v", err)
-		return fiber.NewError(fiber.StatusInternalServerError, "邀请协作者失败")
+		logger.Error("生成邀请令牌失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "生成邀请链接失败")
 	}
 
-	logger.Info("用户 %s 邀请了协作者 %s 到空间 %s", userID, req.CollaboratorID, spaceID)
+	inviteLink := fmt.Sprintf("%s/invite/%s", config.AppConfig.FrontendURL, tokenString)
+
+	// 发送邀请邮件
+	err = email.SendInviteEmail(req.Email, spaceName, inviteLink)
+	if err != nil {
+		logger.Error("发送邀请邮件失败: %v", err)
+		// 即使邮件发送失败，我们仍然返回邀请链接
+	}
+
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
-		"message": "邀请协作者成功",
+		"message": "生成邀请链接成功",
+		"data": space.InviteCollaboratorResponse{
+			InviteLink: inviteLink,
+		},
+	})
+}
+
+// HandleVerifyInviteToken 验证邀请令牌
+func HandleVerifyInviteToken(c *fiber.Ctx) error {
+	tokenString := c.Params("token")
+
+	// 解析令牌
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(config.AppConfig.JWTSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接")
+	}
+
+	// 获取空间和邀请者信息
+	var spaceName, inviterName string
+	err = config.DB.QueryRow(`
+		SELECT s.name, u.username 
+		FROM nlip_spaces s 
+		JOIN nlip_users u ON s.owner_id = u.id 
+		WHERE s.id = ?
+	`, claims["spaceId"]).Scan(&spaceName, &inviterName)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
+	}
+
+	return c.JSON(fiber.Map{
+		"code":    fiber.StatusOK,
+		"message": "验证成功",
+		"data": space.VerifyInviteTokenResponse{
+			SpaceID:     claims["spaceId"].(string),
+			SpaceName:   spaceName,
+			InviterID:   claims["inviterId"].(string),
+			InviterName: inviterName,
+		},
+	})
+}
+
+// HandleAcceptInvite 接受邀请
+func HandleAcceptInvite(c *fiber.Ctx) error {
+	tokenString := c.Params("token")
+	userID := c.Locals("userId").(string)
+
+	// 解析令牌
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(config.AppConfig.JWTSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接")
+	}
+
+	spaceID := claims["spaceId"].(string)
+	permission := claims["permission"].(string)
+
+	// 更新协作者列表
+	err = config.DB.QueryRow(`
+		UPDATE nlip_spaces 
+		SET invited_users = JSON_SET(
+			COALESCE(invited_users, '{}'),
+			?, ?
+		)
+		WHERE id = ?
+	`, fmt.Sprintf("$.%s", userID), permission, spaceID).Err()
+
+	if err != nil {
+		logger.Error("添加协作者失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "接受邀请失败")
+	}
+
+	return c.JSON(fiber.Map{
+		"code":    fiber.StatusOK,
+		"message": "成功加入空间",
 	})
 }
 
@@ -651,7 +731,7 @@ func HandlePublicSpaceStats(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"code": fiber.StatusOK,
+		"code":    fiber.StatusOK,
 		"message": "获取公共空间统计信息成功",
 		"data": fiber.Map{
 			"clipCount": clipCount,
@@ -699,7 +779,7 @@ func HandleSpaceStats(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"code": fiber.StatusOK,
+		"code":    fiber.StatusOK,
 		"message": "获取空间统计信息成功",
 		"data": fiber.Map{
 			"clipCount": clipCount,

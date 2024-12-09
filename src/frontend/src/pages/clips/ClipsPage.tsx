@@ -16,17 +16,17 @@ import { useDispatch, useSelector } from 'react-redux';
 import { clearAuth } from '@/store/slices/authSlice';
 import { RootState } from '@/store';
 import dayjs from 'dayjs';
-import SpaceSettingsModal from './components/SpaceSettingsModal';
+import SpaceSettingsModal from '@/pages/spaces/components/SpaceSettingsModal';
 import { UploadClipRequest, Clip, ImagePreviewState, SpaceStats } from '@/store/types';
 import styles from './ClipsPage.module.scss';
 import { updateClip } from '@/api/clips';
-import CreateSpaceModal from './components/CreateSpaceModal';
-import SpacePermissionAlert from './components/SpacePermissionAlert';
+import CreateSpaceModal from '@/pages/spaces/components/CreateSpaceModal';
+import SpacePermissionAlert from '@/pages/spaces/components/SpacePermissionAlert';
 import { useSpaceNavigation } from '@/hooks/useSpaceNavigation';
 import { getSpacePermission } from '@/utils/permission';
 import { getSpaceStats } from '@/api/spaces';
-import SpaceList from './components/SpaceList';
-import SpaceStatsCard from './components/SpaceStatsCard';
+import SpaceList from '@/pages/spaces/components/SpaceList';
+import SpaceStatsCard from '@/pages/spaces/components/SpaceStatsCard';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -877,6 +877,7 @@ const ClipsPage: React.FC = () => {
             space={currentSpace}
             clipCount={spaceStats?.clipCount || 0}
             loading={loadingStats}
+            onSpaceUpdate={fetchSpaces}
           />
         )}
       </div>

@@ -24,7 +24,7 @@ export const checkSpaceAccess = (space: Space, user?: User | null): boolean => {
   }
 
   // 被邀请的用户可以访问
-  return !!space.invitedUsers?.[user.id];
+  return !!space.collaborators?.find((collaborator) => collaborator.id === user.id);
 };
 
 export const getSpacePermission = (space: Space, user?: User | null): 'edit' | 'view' | null => {
@@ -41,5 +41,5 @@ export const getSpacePermission = (space: Space, user?: User | null): 'edit' | '
   }
 
   // 返回邀请用户的权限
-  return space.invitedUsers?.[user.id] || null;
+  return space.collaborators?.find((collaborator) => collaborator.id === user.id)?.permission || null;
 };

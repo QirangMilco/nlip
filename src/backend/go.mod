@@ -6,10 +6,12 @@ require (
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/gofiber/fiber/v2 v2.52.0
 	github.com/gofiber/websocket/v2 v2.2.1
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/google/uuid v1.5.0
 	github.com/mattn/go-sqlite3 v1.14.19
 	golang.org/x/crypto v0.19.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

@@ -162,7 +162,7 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
 
   // 渲染协作者列表
   const renderCollaborators = () => {
-    if (!space.invitedUsers) return null;
+    if (!space.collaborators) return null;
 
     const columns = [
       {
@@ -201,10 +201,10 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
       },
     ];
 
-    const dataSource = Object.entries(space.invitedUsers).map(([userId, permission]) => ({
-      userId,
-      permission,
-      key: userId,
+    const dataSource = space.collaborators.map((collaborator) => ({
+      userId: collaborator.id,
+      permission: collaborator.permission,
+      key: collaborator.id,
     }));
 
     return (
