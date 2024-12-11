@@ -5,30 +5,30 @@ import (
 )
 
 type Space struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	Type          string            `json:"type"` // public 或 private
-	OwnerID       string            `json:"ownerId"`
-	MaxItems      int               `json:"maxItems"`
-	RetentionDays int               `json:"retentionDays"`
-	CreatedAt     time.Time         `json:"createdAt"`
-	UpdatedAt     time.Time         `json:"updatedAt"`
-	InvitedUsers  []CollaboratorInfo `json:"invitedUsers"`
+	ID            string             `json:"id"`
+	Name          string             `json:"name"`
+	Type          string             `json:"type"` // public 或 private
+	OwnerID       string             `json:"ownerId"`
+	MaxItems      int                `json:"maxItems"`
+	RetentionDays int                `json:"retentionDays"`
+	CreatedAt     time.Time          `json:"createdAt"`
+	UpdatedAt     time.Time          `json:"updatedAt"`
+	Collaborators []CollaboratorInfo `json:"collaborators"`
 }
 
 type CreateSpaceRequest struct {
-	Name          string            `json:"name" validate:"required,min=2,max=50"`
-	Type          string            `json:"type" validate:"omitempty,oneof=public private"`
-	MaxItems      int               `json:"maxItems" validate:"required,min=1"`
-	RetentionDays int               `json:"retentionDays" validate:"required,min=1"`
-	InvitedUsers  []CollaboratorInfo `json:"invitedUsers" validate:"omitempty,dive,keys,required,endkeys,oneof=edit view"`
+	Name          string             `json:"name" validate:"required,min=2,max=50"`
+	Type          string             `json:"type" validate:"omitempty,oneof=public private"`
+	MaxItems      int                `json:"maxItems" validate:"required,min=1"`
+	RetentionDays int                `json:"retentionDays" validate:"required,min=1"`
+	Collaborators []CollaboratorInfo `json:"collaborators" validate:"omitempty,dive,keys,required,endkeys,oneof=edit view"`
 }
 
 type UpdateSpaceRequest struct {
-	Name          string            `json:"name" validate:"omitempty,min=2,max=50"`
-	MaxItems      int               `json:"maxItems,omitempty"`
-	RetentionDays int               `json:"retentionDays,omitempty"`
-	InvitedUsers  []CollaboratorInfo `json:"invitedUsers,omitempty" validate:"omitempty,dive,keys,required,endkeys,oneof=edit view"`
+	Name          string             `json:"name" validate:"omitempty,min=2,max=50"`
+	MaxItems      int                `json:"maxItems,omitempty"`
+	RetentionDays int                `json:"retentionDays,omitempty"`
+	Collaborators []CollaboratorInfo `json:"collaborators,omitempty" validate:"omitempty,dive,keys,required,endkeys,oneof=edit view"`
 }
 
 type SpaceResponse struct {
@@ -57,8 +57,8 @@ type UpdateSpaceSettingsRequest struct {
 
 // InviteCollaboratorRequest 邀请协作者请求
 type InviteCollaboratorRequest struct {
-	Permission     string `json:"permission" validate:"required,oneof=edit view"`
-	Email          string `json:"email" validate:"required,email"`
+	Permission string `json:"permission" validate:"required,oneof=edit view"`
+	Email      string `json:"email" validate:"required,email"`
 }
 
 // InviteCollaboratorResponse 邀请协作者响应
@@ -68,9 +68,9 @@ type InviteCollaboratorResponse struct {
 
 // VerifyInviteTokenResponse 验证邀请令牌响应
 type VerifyInviteTokenResponse struct {
-	SpaceID   string `json:"spaceId"`
-	SpaceName string `json:"spaceName"`
-	InviterName string `json:"inviterName"`
+	SpaceID           string `json:"spaceId"`
+	SpaceName         string `json:"spaceName"`
+	InviterName       string `json:"inviterName"`
 	Permission        string `json:"permission"`
 	IsCollaborator    bool   `json:"isCollaborator"`
 	CurrentPermission string `json:"currentPermission"`
@@ -88,9 +88,8 @@ type AcceptInviteRequest struct {
 
 // CollaboratorInfo 协作者信息
 type CollaboratorInfo struct {
-	UserID     string `json:"userId"`
+	ID         string `json:"id"`
 	Username   string `json:"username"`
-	Email      string `json:"email"`
 	Permission string `json:"permission"`
 }
 
@@ -98,4 +97,3 @@ type CollaboratorInfo struct {
 type ListCollaboratorsResponse struct {
 	Collaborators []CollaboratorInfo `json:"collaborators"`
 }
-

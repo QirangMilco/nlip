@@ -17,13 +17,12 @@ import { clearAuth } from '@/store/slices/authSlice';
 import { RootState } from '@/store';
 import dayjs from 'dayjs';
 import SpaceSettingsModal from '@/pages/spaces/components/SpaceSettingsModal';
-import { UploadClipRequest, Clip, ImagePreviewState, SpaceStats, User } from '@/store/types';
+import { UploadClipRequest, Clip, ImagePreviewState, SpaceStats, Collaborator } from '@/store/types';
 import styles from './ClipsPage.module.scss';
 import { updateClip } from '@/api/clips';
 import CreateSpaceModal from '@/pages/spaces/components/CreateSpaceModal';
 import SpacePermissionAlert from '@/pages/spaces/components/SpacePermissionAlert';
 import { useSpaceNavigation } from '@/hooks/useSpaceNavigation';
-import { getSpacePermission } from '@/utils/permission';
 import { getSpaceStats, getSpaceCollaborators } from '@/api/spaces';
 import SpaceList from '@/pages/spaces/components/SpaceList';
 import SpaceStatsCard from '@/pages/spaces/components/SpaceStatsCard';
@@ -84,14 +83,10 @@ const ClipsPage: React.FC = () => {
   // const isGuest = isPublicSpace && !token;
 
   // 更新权限检查函数
-  const checkSpacePermission = useCallback((requiredPermission: 'edit' | 'view' = 'view') => {
-    if (!currentSpace || !currentUser) return false;
-    
-    const permission = getSpacePermission(currentSpace, currentUser);
-    if (!permission) return false;
-
-    return requiredPermission === 'view' ? true : permission === 'edit';
-  }, [currentSpace, currentUser]);
+  const hasEditPermission = useMemo(() => {
+    if (!currentSpace) return false;
+    return currentSpace.permission === 'edit';
+  }, [currentSpace]);
 
   // 更新空间管理权限检查
   const canManageSpace = useMemo(() => {
@@ -125,24 +120,30 @@ const ClipsPage: React.FC = () => {
     }
   }, [spaceId, fetchClips]);
 
-  // 6. 事件处理函数
-  const { handleSpaceChange: navigateToSpace } = useSpaceNavigation();
-
-  const [collaborators, setCollaborators] = useState<User[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loadingCollaborators, setLoadingCollaborators] = useState(false);
 
   const fetchCollaborators = useCallback(async () => {
     if (!spaceId) return;
     try {
       setLoadingCollaborators(true);
-      const response = await getSpaceCollaborators(spaceId);
-      setCollaborators(response);
+      const collabs = await getSpaceCollaborators(spaceId);
+      setCollaborators(collabs);
     } catch (error) {
       console.error('获取协作者信息失败:', error);
     } finally {
       setLoadingCollaborators(false);
     }
   }, [spaceId]);
+
+  useEffect(() => {
+    if (spaceId) {
+      fetchCollaborators();
+    }
+  }, [spaceId, fetchCollaborators]);
+
+  // 6. 事件处理函数
+  const { handleSpaceChange: navigateToSpace } = useSpaceNavigation();
 
   const fetchSpaceData = useCallback(async () => {
     if (!spaceId) return;
@@ -174,7 +175,6 @@ const ClipsPage: React.FC = () => {
       const targetSpace = spaces.find(s => s.id === newSpaceId);
       const targetSpaceType = targetSpace?.type || 'private';
       
-      // 切换空间时使用目标空间的类型
       navigateToSpace(newSpaceId, targetSpaceType, spaces);
       
     } catch (error) {
@@ -404,7 +404,7 @@ const ClipsPage: React.FC = () => {
     }
 
     // 编辑和删除按钮需要编辑权限
-    if (checkSpacePermission('edit')) {
+    if (hasEditPermission) {
       actions.push(
         <Tooltip key="edit" title="编辑">
           <Button
@@ -649,10 +649,18 @@ const ClipsPage: React.FC = () => {
   const [spaceStats, setSpaceStats] = useState<SpaceStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
-  // 在空间切换时更新统计信息
-  useEffect(() => {
-    fetchSpaceStats();
-  }, [spaceId, fetchSpaceStats]);
+  const fetchSpaceStats = useCallback(async () => {
+    if (!spaceId) return;
+    try {
+      setLoadingStats(true);
+      const stats = await getSpaceStats(spaceId);
+      setSpaceStats(stats);
+    } catch (error) {
+      console.error('获取空间统计信息失败:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [spaceId]);
 
   const [showCreateSpace, setShowCreateSpace] = useState(false);
 
@@ -705,9 +713,9 @@ const ClipsPage: React.FC = () => {
       <div className={styles.mainContent}>
         {currentSpace && (
           <SpacePermissionAlert
-            space={currentSpace}
-            permission={getSpacePermission(currentSpace, currentUser)}
+            space={currentSpace} 
             isAdmin={currentUser?.isAdmin}
+            isGuest={!currentUser}
           />
         )}
         <Card 

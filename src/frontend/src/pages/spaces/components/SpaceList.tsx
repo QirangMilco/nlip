@@ -1,11 +1,10 @@
 import React, { useMemo } from 'react';
 import { Select, Tooltip } from 'antd';
 import { GlobalOutlined, LockOutlined } from '@ant-design/icons';
-import { Space, User } from '@/store/types';
-import { checkSpaceAccess } from '@/utils/permission';
+import { SpaceWithPermission, User } from '@/store/types';
 
 interface SpaceListProps {
-  spaces: Space[];
+  spaces: SpaceWithPermission[];
   currentUser: User | null;
   value?: string;
   loading?: boolean;
@@ -21,22 +20,22 @@ const SpaceList: React.FC<SpaceListProps> = ({
 }) => {
   // 对空间进行分类和排序
   const categorizedSpaces = useMemo(() => {
-    const publicSpaces: Space[] = [];
-    const ownedSpaces: Space[] = [];
-    const sharedSpaces: Space[] = [];
+    const publicSpaces: SpaceWithPermission[] = [];
+    const ownedSpaces: SpaceWithPermission[] = [];
+    const sharedSpaces: SpaceWithPermission[] = [];
 
     spaces.forEach(space => {
       if (space.type === 'public') {
         publicSpaces.push(space);
       } else if (space.ownerId === currentUser?.id) {
         ownedSpaces.push(space);
-      } else if (checkSpaceAccess(space, currentUser)) {
+      } else if (space.permission === 'edit' || space.permission === 'view') {
         sharedSpaces.push(space);
       }
     });
 
     // 修改排序逻辑，让 public-space 置顶
-    const sortByName = (a: Space, b: Space) => {
+    const sortByName = (a: SpaceWithPermission, b: SpaceWithPermission) => {
       if (a.id === 'public-space') return -1;
       if (b.id === 'public-space') return 1;
       return a.name.localeCompare(b.name);
@@ -49,13 +48,13 @@ const SpaceList: React.FC<SpaceListProps> = ({
     };
   }, [spaces, currentUser]);
 
-  const renderSpaceIcon = (space: Space) => {
+  const renderSpaceIcon = (space: SpaceWithPermission) => {
     return space.type === 'public' ? 
       <GlobalOutlined style={{ marginRight: 8 }} /> : 
       <LockOutlined style={{ marginRight: 8 }} />;
   };
 
-  const renderSpaceName = (space: Space) => {
+  const renderSpaceName = (space: SpaceWithPermission) => {
     if (space.id === 'public-space') {
       return `${space.name}（默认）`;
     }

@@ -1,6 +1,6 @@
 import http from './http';
-import { CreateSpaceRequest, UpdateSpaceRequest, SpaceStats, VerifyInviteTokenResponse, ListCollaboratorsResponse } from '@/store/types';
-import { Space } from '@/store/slices/spaceSlice';
+import { CreateSpaceRequest, UpdateSpaceRequest, SpaceStats, VerifyInviteTokenResponse, Collaborator } from '@/store/types';
+import { Space } from '@/store/types';
 import { store } from '@/store';
 
 export const listSpaces = async (): Promise<Space[]> => {
@@ -88,7 +88,7 @@ export const getSpaceStats = async (spaceId: string): Promise<SpaceStats> => {
   return response.data;
 };
 
-export const getSpaceCollaborators = async (spaceId: string): Promise<ListCollaboratorsResponse> => {
+export const getSpaceCollaborators = async (spaceId: string): Promise<Collaborator[]> => {
   const response = await http.get(`/spaces/${spaceId}/collaborators`);
   return response.data;
 }; 

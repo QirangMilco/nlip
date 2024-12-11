@@ -84,7 +84,7 @@ func createTables() error {
             owner_id VARCHAR(36),
             max_items INT DEFAULT 20,
             retention_days INT DEFAULT 7,
-            invited_users TEXT,
+            collaborators TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (owner_id) REFERENCES nlip_users(id)
@@ -187,7 +187,7 @@ func createTables() error {
         {"idx_invites_token", "nlip_invites", "token_hash"},
         {"idx_invites_space", "nlip_invites", "space_id"},
         {"idx_invites_expires", "nlip_invites", "expires_at"},
-        {"idx_invited_users", "nlip_spaces", "(JSON_EXTRACT(invited_users, '$'))"},
+        {"idx_collaborators", "nlip_spaces", "(JSON_EXTRACT(collaborators, '$'))"},
     }
 
     for _, idx := range indexes {

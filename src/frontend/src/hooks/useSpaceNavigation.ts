@@ -1,15 +1,14 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
-import { Space } from '@/store/types';
+import { SpaceWithPermission } from '@/store/types';
 import { store } from '@/store';
 
 export function useSpaceNavigation() {
   const navigate = useNavigate();
 
-  const handleSpaceChange = useCallback((spaceId: string, spaceType: string, spaces: Space[]) => {
+  const handleSpaceChange = useCallback((spaceId: string, spaceType: string, spaces: SpaceWithPermission[]) => {
     const targetSpace = spaces.find(s => s.id === spaceId);
-    const userId = store.getState().auth.user?.id;
     const isAdmin = store.getState().auth.user?.isAdmin;
 
     if (!targetSpace) {
@@ -19,8 +18,8 @@ export function useSpaceNavigation() {
 
     // 检查访问权限
     const isPublicSpace = spaceType === 'public';
-    const isOwner = targetSpace.ownerId === userId;
-    const hasPermission = targetSpace.collaborators?.find((collaborator) => collaborator.id === userId)?.permission === 'edit';
+    const isOwner = targetSpace.isOwner;
+    const hasPermission = targetSpace.permission === 'edit' || targetSpace.permission === 'view';
 
     if (!isPublicSpace && !isOwner && !hasPermission && !isAdmin) {
       message.error('您没有权限访问此空间');

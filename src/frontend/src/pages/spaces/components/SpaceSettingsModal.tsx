@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, message, Select, Button, Table } from 'antd';
-import { Space } from '@/store/types';
+import { SpaceWithPermission } from '@/store/types';
 import { updateSpace } from '@/api/spaces';
 import { getSettings } from '@/api/admin';
 import { useSelector } from 'react-redux';
@@ -12,7 +12,7 @@ import { deleteSpace } from '@/api/spaces';
 
 interface SpaceSettingsModalProps {
   visible: boolean;
-  space: Space;
+  space: SpaceWithPermission;
   onClose: () => void;
   onSpaceUpdated: (action?: 'delete') => Promise<void>;
 }
@@ -31,11 +31,13 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
   // 获取当前用户信息
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const isAdmin = currentUser?.isAdmin;
-  const isOwner = space.ownerId === currentUser?.id;
+  const isOwner = space.isOwner;
   const isPublicSpace = space.type === 'public';
 
   // 修改权限检查逻辑
-  const canManageSpace = isAdmin || isOwner;
+  const canManageSpace = isPublicSpace 
+    ? isAdmin  // 公共空间只允许管理员管理
+    : isOwner; // 私有空间只允许拥有者管理
 
   useEffect(() => {
     if (visible && space) {

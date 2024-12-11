@@ -94,12 +94,12 @@ func checkClipPermission(tx *sql.Tx, spaceID, clipID, userID string, isAdmin boo
 	} else {
 		// 查询空间信息和权限
 		var spaceOwnerID string
-		var invitedUsers sql.NullString
+		var collaborators sql.NullString
 		err := db.QueryRowTx(tx, `
-			SELECT owner_id, invited_users 
+			SELECT owner_id, collaborators 
 			FROM nlip_spaces 
 			WHERE id = ?
-		`, spaceID).Scan(&spaceOwnerID, &invitedUsers)
+		`, spaceID).Scan(&spaceOwnerID, &collaborators)
 
 		if err == sql.ErrNoRows {
 			return "", fiber.NewError(fiber.StatusNotFound, ErrSpaceNotFound)
@@ -109,12 +109,12 @@ func checkClipPermission(tx *sql.Tx, spaceID, clipID, userID string, isAdmin boo
 
 		// 检查用户权限
 		if !isAdmin && spaceOwnerID != userID {
-			if !invitedUsers.Valid {
+			if !collaborators.Valid {
 				return "", fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
 			}
 
 			var permissions map[string]string
-			if err := json.Unmarshal([]byte(invitedUsers.String), &permissions); err != nil {
+			if err := json.Unmarshal([]byte(collaborators.String), &permissions); err != nil {
 				return "", fiber.NewError(fiber.StatusInternalServerError, "权限解析失败")
 			}
 
@@ -155,12 +155,12 @@ func checkReadPermission(tx *sql.Tx, spaceID, userID string, isAdmin bool) error
 
 	// 私有空间权限检查
 	var spaceOwnerID string
-	var invitedUsers sql.NullString
+	var collaborators sql.NullString
 	err = db.QueryRowTx(tx, `
-		SELECT owner_id, invited_users 
+		SELECT owner_id, collaborators 
 		FROM nlip_spaces 
 		WHERE id = ?
-	`, spaceID).Scan(&spaceOwnerID, &invitedUsers)
+	`, spaceID).Scan(&spaceOwnerID, &collaborators)
 
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, ErrSpaceNotFound)
@@ -174,12 +174,12 @@ func checkReadPermission(tx *sql.Tx, spaceID, userID string, isAdmin bool) error
 	}
 
 	// 检查被邀请用户的权限
-	if !invitedUsers.Valid {
+	if !collaborators.Valid {
 		return fiber.NewError(fiber.StatusForbidden, ErrNoPermission)
 	}
 
 	var permissions map[string]string
-	if err := json.Unmarshal([]byte(invitedUsers.String), &permissions); err != nil {
+	if err := json.Unmarshal([]byte(collaborators.String), &permissions); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "权限解析失败")
 	}
 

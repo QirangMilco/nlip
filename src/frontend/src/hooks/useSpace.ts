@@ -1,16 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Space } from '@/store/slices/spaceSlice';
+import { SpacePermission, SpaceWithPermission } from '@/store/types';
 import { CreateSpaceRequest, UpdateSpaceRequest } from '@/store/types';
 import * as spaceApi from '@/api/spaces';
 import { store } from '@/store';
-// 定义权限类型
-export type SpacePermission = 'edit' | 'view';
 
-// 扩展 Space 类型以包含权限信息
-interface SpaceWithPermission extends Space {
-  permission?: SpacePermission;
-  isOwner?: boolean;
-}
 
 // 移除重载定义，只保留一个返回类型
 export function useSpace() {
@@ -28,7 +21,9 @@ export function useSpace() {
       const spacesWithPermissions = data.map(space => ({
         ...space,
         isOwner: space.ownerId === store.getState().auth.user?.id,
-        permission: space.invitedUsers?.[store.getState().auth.user?.id || ''] as SpacePermission | undefined
+        permission: space.collaborators?.find(
+          collab => collab.id === store.getState().auth.user?.id
+        )?.permission as SpacePermission | undefined
       }));
 
       setSpaces(spacesWithPermissions);

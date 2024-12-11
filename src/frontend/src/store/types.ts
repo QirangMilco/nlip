@@ -38,7 +38,6 @@ export interface ChangePasswordResponse {
 // 空间相关类型
 export interface Collaborator {
   id: string;
-  email: string;
   username: string;
   permission: 'edit' | 'view';
 }
@@ -54,6 +53,15 @@ export interface Space {
   collaborators: Collaborator[];
   createdAt: string;
   updatedAt: string;
+}
+
+// 定义权限类型
+export type SpacePermission = 'edit' | 'view';
+
+// 扩展 Space 类型以包含权限信息
+export interface SpaceWithPermission extends Space {
+  permission?: SpacePermission;
+  isOwner?: boolean;
 }
 
 // 剪贴板相关类型

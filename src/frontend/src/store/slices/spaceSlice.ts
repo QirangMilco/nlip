@@ -1,16 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-
-export interface Space {
-  id: string;
-  name: string;
-  type: 'public' | 'private';
-  ownerId: string;
-  maxItems: number;
-  retentionDays: number;
-  invitedUsers?: Record<string, 'edit' | 'view'>;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Space } from '../types';
 
 interface SpaceState {
   spaces: Space[];
