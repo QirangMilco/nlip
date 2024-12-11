@@ -51,7 +51,7 @@ export interface Space {
   ownerId: string;
   maxItems: number;
   retentionDays: number;
-  collaborators?: Collaborator[];
+  collaborators: Collaborator[];
   createdAt: string;
   updatedAt: string;
 }
@@ -141,4 +141,17 @@ export interface ServerSettings {
     security: {
         token_expiry: string;
     };
+}
+
+export interface VerifyInviteTokenResponse {
+  spaceId: string;
+  spaceName: string;
+  inviterName: string;
+  permission: string;
+  isCollaborator: boolean;
+  currentPermission?: string;
+}
+
+export interface ListCollaboratorsResponse {
+  collaborators: Collaborator[];
 }

@@ -16,6 +16,15 @@ file_types:
     - sh
     - bat
 
+# 邮件配置
+# email:
+#   enabled: true  # 默认启用邮件功能
+#   host: smtp.example.com
+#   port: 587
+#   username: your@email.com
+#   password: your-password
+#   from: noreply@example.com
+
 # 以下配置可选
 # app_env: development
 # token_expiry: 24h
@@ -42,11 +51,3 @@ file_types:
 #   default_retention_days: 7
 #   max_items_limit: 100
 #   max_retention_days_limit: 30
-
-# 邮件配置（可选）
-# email:
-#   host: smtp.example.com
-#   port: 587
-#   username: your@email.com
-#   password: your-password
-#   from: noreply@example.com

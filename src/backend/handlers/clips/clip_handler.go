@@ -64,7 +64,7 @@ func checkClipPermission(tx *sql.Tx, spaceID, clipID, userID string, isAdmin boo
 	var spaceType string
 
 	// 先查询空间类型
-	err := tx.QueryRow(`
+	err := db.QueryRowTx(tx, `
 		SELECT type FROM nlip_spaces WHERE id = ?
 	`, spaceID).Scan(&spaceType)
 
@@ -75,7 +75,7 @@ func checkClipPermission(tx *sql.Tx, spaceID, clipID, userID string, isAdmin boo
 	}
 
 	if spaceType == SpaceTypePublic {
-		err := tx.QueryRow(`
+		err := db.QueryRowTx(tx, `
 			SELECT creator_id 
 			FROM nlip_clipboard_items 
 			WHERE clip_id = ? AND space_id = ?
@@ -95,7 +95,7 @@ func checkClipPermission(tx *sql.Tx, spaceID, clipID, userID string, isAdmin boo
 		// 查询空间信息和权限
 		var spaceOwnerID string
 		var invitedUsers sql.NullString
-		err := tx.QueryRow(`
+		err := db.QueryRowTx(tx, `
 			SELECT owner_id, invited_users 
 			FROM nlip_spaces 
 			WHERE id = ?
@@ -138,7 +138,7 @@ func checkReadPermission(tx *sql.Tx, spaceID, userID string, isAdmin bool) error
 	var spaceType string
 
 	// 查询空间类型
-	err := tx.QueryRow(`
+	err := db.QueryRowTx(tx, `
 		SELECT type FROM nlip_spaces WHERE id = ?
 	`, spaceID).Scan(&spaceType)
 
@@ -156,7 +156,7 @@ func checkReadPermission(tx *sql.Tx, spaceID, userID string, isAdmin bool) error
 	// 私有空间权限检查
 	var spaceOwnerID string
 	var invitedUsers sql.NullString
-	err = tx.QueryRow(`
+	err = db.QueryRowTx(tx, `
 		SELECT owner_id, invited_users 
 		FROM nlip_spaces 
 		WHERE id = ?
@@ -818,7 +818,7 @@ func HandleDeleteClip(c *fiber.Ctx) error {
 
 		// 获取文件路径
 		var filePath string
-		err = tx.QueryRow("SELECT file_path FROM nlip_clipboard_items WHERE clip_id = ? AND space_id = ?",
+		err = db.QueryRowTx(tx, "SELECT file_path FROM nlip_clipboard_items WHERE clip_id = ? AND space_id = ?",
 			clipID, spaceID).Scan(&filePath)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, "查询剪贴板内容失败")

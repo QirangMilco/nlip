@@ -17,14 +17,14 @@ import { clearAuth } from '@/store/slices/authSlice';
 import { RootState } from '@/store';
 import dayjs from 'dayjs';
 import SpaceSettingsModal from '@/pages/spaces/components/SpaceSettingsModal';
-import { UploadClipRequest, Clip, ImagePreviewState, SpaceStats } from '@/store/types';
+import { UploadClipRequest, Clip, ImagePreviewState, SpaceStats, User } from '@/store/types';
 import styles from './ClipsPage.module.scss';
 import { updateClip } from '@/api/clips';
 import CreateSpaceModal from '@/pages/spaces/components/CreateSpaceModal';
 import SpacePermissionAlert from '@/pages/spaces/components/SpacePermissionAlert';
 import { useSpaceNavigation } from '@/hooks/useSpaceNavigation';
 import { getSpacePermission } from '@/utils/permission';
-import { getSpaceStats } from '@/api/spaces';
+import { getSpaceStats, getSpaceCollaborators } from '@/api/spaces';
 import SpaceList from '@/pages/spaces/components/SpaceList';
 import SpaceStatsCard from '@/pages/spaces/components/SpaceStatsCard';
 
@@ -128,14 +128,35 @@ const ClipsPage: React.FC = () => {
   // 6. 事件处理函数
   const { handleSpaceChange: navigateToSpace } = useSpaceNavigation();
 
-  const fetchSpaceStats = useCallback(async () => {
+  const [collaborators, setCollaborators] = useState<User[]>([]);
+  const [loadingCollaborators, setLoadingCollaborators] = useState(false);
+
+  const fetchCollaborators = useCallback(async () => {
+    if (!spaceId) return;
+    try {
+      setLoadingCollaborators(true);
+      const response = await getSpaceCollaborators(spaceId);
+      setCollaborators(response);
+    } catch (error) {
+      console.error('获取协作者信息失败:', error);
+    } finally {
+      setLoadingCollaborators(false);
+    }
+  }, [spaceId]);
+
+  const fetchSpaceData = useCallback(async () => {
     if (!spaceId) return;
     try {
       setLoadingStats(true);
-      const stats = await getSpaceStats(spaceId);
+      // 并行请求统计信息和协作者信息
+      const [stats, collabs] = await Promise.all([
+        getSpaceStats(spaceId),
+        getSpaceCollaborators(spaceId)
+      ]);
       setSpaceStats(stats);
+      setCollaborators(collabs);
     } catch (error) {
-      console.error('获取空间统计信息失败:', error);
+      console.error('获取空间数据失败:', error);
     } finally {
       setLoadingStats(false);
     }
@@ -876,8 +897,14 @@ const ClipsPage: React.FC = () => {
           <SpaceStatsCard 
             space={currentSpace}
             clipCount={spaceStats?.clipCount || 0}
-            loading={loadingStats}
-            onSpaceUpdate={fetchSpaces}
+            collaborators={collaborators}
+            loading={loadingStats || loadingCollaborators}
+            onSpaceUpdate={async () => {
+              await Promise.all([
+                fetchSpaces(),
+                fetchSpaceData()
+              ]);
+            }}
           />
         )}
       </div>

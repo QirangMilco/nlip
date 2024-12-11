@@ -89,9 +89,16 @@ func setupV1Routes(api fiber.Router) {
 	spaceRoutes.Get("/:id/stats", spaces.HandleSpaceStats)
 
 	// 协作者相关路由
+	spaceRoutes.Get("/:id/collaborators", spaces.HandleListCollaborators)
 	spaceRoutes.Post("/:id/collaborators/invite",
 		validator.ValidateBody(&space.InviteCollaboratorRequest{}),
 		spaces.HandleInviteCollaborator)
+	spaceRoutes.Post("/collaborators/verify-invite",
+		validator.ValidateBody(&space.ValidateInviteRequest{}),
+		spaces.HandleVerifyInviteToken)
+	spaceRoutes.Post("/collaborators/accept-invite",
+		validator.ValidateBody(&space.AcceptInviteRequest{}),
+		spaces.HandleAcceptInvite)
 	spaceRoutes.Delete("/:id/collaborators/remove",
 		validator.ValidateBody(&space.RemoveCollaboratorRequest{}),
 		spaces.HandleRemoveCollaborator)

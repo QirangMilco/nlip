@@ -4,12 +4,13 @@ import { Result, Button, message, Spin } from 'antd';
 import { verifyInviteToken, acceptInvite } from '@/api/spaces';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
+import { VerifyInviteTokenResponse } from '@/store/types';
 
 const InviteConfirmation: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [spaceInfo, setSpaceInfo] = useState<any>(null);
+  const [spaceInfo, setSpaceInfo] = useState<VerifyInviteTokenResponse | null>(null);
   const [error, setError] = useState<string>('');
   const isAuthenticated = useSelector((state: RootState) => !!state.auth.token);
 
@@ -22,6 +23,14 @@ const InviteConfirmation: React.FC = () => {
   const verifyToken = async () => {
     try {
       const info = await verifyInviteToken(token!);
+      
+      // 如果用户已经是该空间的协作者，直接跳转到空间页面
+      if (info.isCollaborator) {
+        message.info('您已经是该空间的成员');
+        navigate(`/clips/${info.spaceId}`);
+        return;
+      }
+      
       setSpaceInfo(info);
     } catch (err: any) {
       setError(err.message || '无效的邀请链接');
@@ -31,10 +40,14 @@ const InviteConfirmation: React.FC = () => {
   };
 
   const handleAccept = async () => {
+    if (!spaceInfo) {
+      message.error('空间信息无效');
+      return;
+    }
     try {
       await acceptInvite(token!);
       message.success('已成功加入空间');
-      navigate(`/spaces/${spaceInfo.spaceId}`);
+      navigate(`/clips/${spaceInfo.spaceId}`);
     } catch (err: any) {
       message.error(err.message || '加入空间失败');
     }

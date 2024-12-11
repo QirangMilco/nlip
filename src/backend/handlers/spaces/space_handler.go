@@ -1,7 +1,9 @@
 package spaces
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"nlip/config"
@@ -13,8 +15,14 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt"
 )
+
+func getMessage(emailEnabled bool) string {
+	if emailEnabled {
+		return "生成邀请链接成功，已发送邮件"
+	}
+	return "生成邀请链接成功，请手动将邀请链接发送给协作者"
+}
 
 // HandleListSpaces 处理获取空间列表
 func HandleListSpaces(c *fiber.Ctx) error {
@@ -31,7 +39,7 @@ func HandleListSpaces(c *fiber.Ctx) error {
 	if !ok {
 		// 未认证用户只能看到公共空间
 		rows, err = db.QueryRows(config.DB, `
-            SELECT id, name, type, owner_id, max_items, retention_days, created_at, updated_at
+            SELECT id, name, type, owner_id, max_items, retention_days, invited_users, created_at, updated_at
             FROM nlip_spaces 
             WHERE type = 'public'
             ORDER BY created_at DESC
@@ -39,14 +47,14 @@ func HandleListSpaces(c *fiber.Ctx) error {
 	} else if isAdmin {
 		// 管理员可以看到所有空间
 		rows, err = db.QueryRows(config.DB, `
-            SELECT id, name, type, owner_id, max_items, retention_days, created_at, updated_at
+            SELECT id, name, type, owner_id, max_items, retention_days, invited_users, created_at, updated_at
             FROM nlip_spaces
             ORDER BY created_at DESC
         `)
 	} else {
 		// 已认证的普通用户可以看到公共空间和自己的私有空间
 		rows, err = db.QueryRows(config.DB, `
-            SELECT id, name, type, owner_id, max_items, retention_days, created_at, updated_at
+            SELECT id, name, type, owner_id, max_items, retention_days, invited_users, created_at, updated_at
             FROM nlip_spaces 
             WHERE type = 'public' OR owner_id = ?
             ORDER BY created_at DESC
@@ -62,6 +70,7 @@ func HandleListSpaces(c *fiber.Ctx) error {
 	var spaces []space.Space
 	for rows.Next() {
 		var s space.Space
+		var invitedUsersJSON string
 		err := rows.Scan(
 			&s.ID,
 			&s.Name,
@@ -69,6 +78,7 @@ func HandleListSpaces(c *fiber.Ctx) error {
 			&s.OwnerID,
 			&s.MaxItems,
 			&s.RetentionDays,
+			&invitedUsersJSON,
 			&s.CreatedAt,
 			&s.UpdatedAt,
 		)
@@ -76,6 +86,37 @@ func HandleListSpaces(c *fiber.Ctx) error {
 			logger.Error("读取空间数据失败: %v", err)
 			return fiber.NewError(fiber.StatusInternalServerError, "读取空间数据失败")
 		}
+
+		s.InvitedUsers = []space.CollaboratorInfo{}
+
+		// 解析协作者信息
+		if invitedUsersJSON != "" {
+			if err := json.Unmarshal([]byte(invitedUsersJSON), &s.InvitedUsers); err != nil {
+				logger.Error("解析协作者列表失败: %v", err)
+				continue
+			}
+
+			// 查询协作者详细信息
+			for _, collaborator := range s.InvitedUsers {
+				var username, email string
+				err := config.DB.QueryRow(`
+					SELECT username, email FROM nlip_users WHERE id = ?
+				`, collaborator.UserID).Scan(&username, &email)
+
+				if err != nil {
+					logger.Warning("获取协作者信息失败: %v", err)
+					continue
+				}
+
+				s.InvitedUsers = append(s.InvitedUsers, space.CollaboratorInfo{
+					UserID:     collaborator.UserID,
+					Username:   username,
+					Email:      email,
+					Permission: collaborator.Permission,
+				})
+			}
+		}
+
 		spaces = append(spaces, s)
 	}
 
@@ -368,37 +409,56 @@ func HandleInviteCollaborator(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "服务器错误")
 	}
 
+	logger.Debug("空间所有者ID: %s, 用户ID: %s", ownerID, userID)
 	if ownerID != userID {
 		return fiber.NewError(fiber.StatusForbidden, "只有空间所有者可以邀请协作者")
 	}
 
-	// 生成邀请令牌
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"spaceId":    spaceID,
-		"permission": req.Permission,
-		"inviterId":  userID,
-		"email":      req.Email,
-		"exp":        time.Now().Add(24 * time.Hour).Unix(),
+	// 生成唯一的令牌哈希值
+	hasher := sha256.New()
+	hasher.Write([]byte(fmt.Sprintf("%s_%s_%d", spaceID, userID, time.Now().UnixNano())))
+	tokenHash := hex.EncodeToString(hasher.Sum(nil))
+
+	// 存储邀请信息到数据库
+	err = db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+		_, err := db.ExecTx(tx, `
+			INSERT INTO nlip_invites (
+				token_hash, 
+				space_id, 
+				created_by, 
+				created_at,
+				expires_at,
+				permission
+			) VALUES (?, ?, ?, datetime('now'), datetime('now', '+24 hours'), ?)
+		`, tokenHash, spaceID, userID, req.Permission)
+		return err
 	})
 
-	tokenString, err := token.SignedString([]byte(config.AppConfig.JWTSecret))
 	if err != nil {
-		logger.Error("生成邀请令牌失败: %v", err)
+		logger.Error("存储邀请令牌失败: %v", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "生成邀请链接失败")
 	}
 
-	inviteLink := fmt.Sprintf("%s/invite/%s", config.AppConfig.FrontendURL, tokenString)
+	inviteLink := fmt.Sprintf("%s/invite/%s", config.AppConfig.FrontendURL, tokenHash)
 
-	// 发送邀请邮件
-	err = email.SendInviteEmail(req.Email, spaceName, inviteLink)
-	if err != nil {
-		logger.Error("发送邀请邮件失败: %v", err)
-		// 即使邮件发送失败，我们仍然返回邀请链接
+	if config.AppConfig.Email.Enabled {
+		// 发送邀请邮件（如果启用了邮件功能）
+		if err = email.SendInviteEmail(req.Email, spaceName, inviteLink); err != nil {
+			logger.Error("发送邀请邮件失败: %v", err)
+			return c.JSON(fiber.Map{
+				"code":    fiber.StatusOK,
+				"message": "生成邀请链接成功，但邮件发送失败",
+				"data": space.InviteCollaboratorResponse{
+					InviteLink: inviteLink,
+				},
+				"warning": "邮件发送失败，请手动将邀请链接发送给协作者",
+			})
+		}
 	}
 
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
-		"message": "生成邀请链接成功",
+		"message": getMessage(config.AppConfig.Email.Enabled),
 		"data": space.InviteCollaboratorResponse{
 			InviteLink: inviteLink,
 		},
@@ -407,84 +467,189 @@ func HandleInviteCollaborator(c *fiber.Ctx) error {
 
 // HandleVerifyInviteToken 验证邀请令牌
 func HandleVerifyInviteToken(c *fiber.Ctx) error {
-	tokenString := c.Params("token")
-
-	// 解析令牌
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(config.AppConfig.JWTSecret), nil
-	})
-
-	if err != nil || !token.Valid {
-		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接")
+	var req space.ValidateInviteRequest
+	if err := c.BodyParser(&req); err != nil {
+		logger.Warning("解析验证邀请令牌请求失败: %v", err)
+		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接")
+	userID := c.Locals("userId").(string)
+
+	// 从数据库中查询邀请信息
+	var spaceID, createdBy, permission string
+	err := config.DB.QueryRow(`
+		SELECT space_id, created_by, permission
+			FROM nlip_invites 
+			WHERE token_hash = ? 
+				AND used_at IS NULL 
+				AND expires_at > datetime('now')
+	`, req.Token).Scan(&spaceID, &createdBy, &permission)
+
+	if err == sql.ErrNoRows {
+		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接或已过期")
+	} else if err != nil {
+		logger.Error("验证邀请令牌失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "服务器错误")
 	}
 
-	// 获取空间和邀请者信息
+	// 检查空间是否存在并获取协作者信息
 	var spaceName, inviterName string
+	var invitedUsersJSON string
 	err = config.DB.QueryRow(`
-		SELECT s.name, u.username 
-		FROM nlip_spaces s 
-		JOIN nlip_users u ON s.owner_id = u.id 
-		WHERE s.id = ?
-	`, claims["spaceId"]).Scan(&spaceName, &inviterName)
+		SELECT s.name, u.username, COALESCE(s.invited_users, '{}')
+			FROM nlip_spaces s 
+			JOIN nlip_users u ON u.id = ?
+			WHERE s.id = ?
+	`, createdBy, spaceID).Scan(&spaceName, &inviterName, &invitedUsersJSON)
 
-	if err != nil {
+	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
+	} else if err != nil {
+		logger.Error("获取空间信息失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "获取空间信息失败")
+	}
+
+	// 检查用户是否已经是协作者
+	var invitedUsers = make(map[string]string)
+	if invitedUsersJSON != "" && invitedUsersJSON != "{}" {
+		if err := json.Unmarshal([]byte(invitedUsersJSON), &invitedUsers); err != nil {
+			logger.Error("解析协作者列表失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "服务器错误")
+		}
+	}
+
+	isCollaborator := false
+	currentPermission := ""
+	if existingPermission, exists := invitedUsers[userID]; exists {
+		isCollaborator = true
+		currentPermission = existingPermission
 	}
 
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "验证成功",
 		"data": space.VerifyInviteTokenResponse{
-			SpaceID:     claims["spaceId"].(string),
-			SpaceName:   spaceName,
-			InviterID:   claims["inviterId"].(string),
-			InviterName: inviterName,
+			SpaceID:           spaceID,
+			SpaceName:         spaceName,
+			InviterName:       inviterName,
+			Permission:        permission,
+			IsCollaborator:    isCollaborator,
+			CurrentPermission: currentPermission,
 		},
 	})
 }
 
-// HandleAcceptInvite 接受邀请
+// HandleAcceptInvite 处理接受邀请
 func HandleAcceptInvite(c *fiber.Ctx) error {
-	tokenString := c.Params("token")
+	var req space.AcceptInviteRequest
+	if err := c.BodyParser(&req); err != nil {
+		logger.Warning("解析接受邀请请求失败: %v", err)
+		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
+	}
+
 	userID := c.Locals("userId").(string)
 
-	// 解析令牌
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(config.AppConfig.JWTSecret), nil
-	})
+	// 检查令牌是否存在且未过期
+	var spaceID, permission string
+	err := config.DB.QueryRow(`
+		SELECT space_id, permission 
+		FROM nlip_invites 
+		WHERE token_hash = ? 
+			AND used_at IS NULL 
+			AND expires_at > datetime('now')
+	`, req.Token).Scan(&spaceID, &permission)
 
-	if err != nil || !token.Valid {
-		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接")
+	if err == sql.ErrNoRows {
+		return fiber.NewError(fiber.StatusBadRequest, "邀请链接无效或已过期")
+	} else if err != nil {
+		logger.Error("验证邀请令牌失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "服务器错误")
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接")
-	}
-
-	spaceID := claims["spaceId"].(string)
-	permission := claims["permission"].(string)
-
-	// 更新协作者列表
+	// 检查空间是否存在
+	var exists bool
 	err = config.DB.QueryRow(`
-		UPDATE nlip_spaces 
-		SET invited_users = JSON_SET(
-			COALESCE(invited_users, '{}'),
-			?, ?
-		)
+		SELECT EXISTS(SELECT 1 FROM nlip_spaces WHERE id = ?)
+	`, spaceID).Scan(&exists)
+
+	if err != nil {
+		logger.Error("检查空间存在性失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "服务器错误")
+	}
+
+	if !exists {
+		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
+	}
+
+	// 检查用户是否已经是协作者
+	var invitedUsersJSON string
+	err = config.DB.QueryRow(`
+		SELECT COALESCE(invited_users, '{}') 
+		FROM nlip_spaces 
 		WHERE id = ?
-	`, fmt.Sprintf("$.%s", userID), permission, spaceID).Err()
+	`, spaceID).Scan(&invitedUsersJSON)
+
+	if err == sql.ErrNoRows {
+		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
+	} else if err != nil {
+		logger.Error("获取空间信息失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "服务器错误")
+	}
+
+	// 初始化 invitedUsers map
+	invitedUsers := make(map[string]string)
+
+	// 检查用户是否已经是协作者
+	if invitedUsersJSON != "" && invitedUsersJSON != "{}" {
+		if err := json.Unmarshal([]byte(invitedUsersJSON), &invitedUsers); err != nil {
+			logger.Error("解析协作者列表失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "服务器错误")
+		}
+	}
+
+	if _, exists := invitedUsers[userID]; exists {
+		return fiber.NewError(fiber.StatusBadRequest, "您已经是该空间的协作者")
+	}
+
+	// 开启事务
+	err = db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+		// 标记令牌为已使用
+		_, err = db.ExecTx(tx, `
+			UPDATE nlip_invites 
+			SET used_at = datetime('now'),
+				used_by = ?
+			WHERE token_hash = ?
+		`, userID, req.Token)
+		if err != nil {
+			return err
+		}
+
+		// 更新协作者列表
+		if invitedUsers == nil {
+			invitedUsers = make(map[string]string)
+		}
+		invitedUsers[userID] = permission
+		newInvitedUsersJSON, err := json.Marshal(invitedUsers)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.ExecTx(tx, `
+			UPDATE nlip_spaces 
+			SET invited_users = ?, 
+				updated_at = datetime('now')
+			WHERE id = ?
+		`, string(newInvitedUsersJSON), spaceID)
+
+		return err
+	})
 
 	if err != nil {
 		logger.Error("添加协作者失败: %v", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "接受邀请失败")
 	}
 
+	logger.Info("用户 %s 成功加入空间 %s", userID, spaceID)
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "成功加入空间",
@@ -783,6 +948,71 @@ func HandleSpaceStats(c *fiber.Ctx) error {
 		"message": "获取空间统计信息成功",
 		"data": fiber.Map{
 			"clipCount": clipCount,
+		},
+	})
+}
+
+// HandleListCollaborators 处理获取空间协作者列表
+func HandleListCollaborators(c *fiber.Ctx) error {
+	spaceID := c.Params("id")
+	userID := c.Locals("userId").(string)
+	isAdmin := c.Locals("isAdmin").(bool)
+
+	// 检查空间是否存在并获取当前信息
+	var s space.Space
+	var invitedUsersJSON string
+	err := config.DB.QueryRow(`
+		SELECT id, name, type, owner_id, invited_users
+		FROM nlip_spaces WHERE id = ?
+	`, spaceID).Scan(&s.ID, &s.Name, &s.Type, &s.OwnerID, &invitedUsersJSON)
+
+	if err == sql.ErrNoRows {
+		return fiber.NewError(fiber.StatusNotFound, "空间不存在")
+	} else if err != nil {
+		logger.Error("获取空间信息失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "获取空间信息失败")
+	}
+
+	// 检查权限
+	if s.Type != "public" && !isAdmin && s.OwnerID != userID {
+		return fiber.NewError(fiber.StatusForbidden, "没有权限查看此空间的协作者")
+	}
+
+	// 解析协作者列表
+	invitedUsers := make(map[string]string)
+	if invitedUsersJSON != "" {
+		if err := json.Unmarshal([]byte(invitedUsersJSON), &invitedUsers); err != nil {
+			logger.Error("解析协作者列表失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "处理协作者数据失败")
+		}
+	}
+
+	// 获取协作者详细信息
+	var collaborators []space.CollaboratorInfo
+	for collaboratorID, permission := range invitedUsers {
+		var username string
+		err := config.DB.QueryRow(`
+			SELECT username FROM nlip_users WHERE id = ?
+		`, collaboratorID).Scan(&username)
+
+		if err != nil {
+			logger.Warning("获取协作者 %s 的用户信息失败: %v", collaboratorID, err)
+			continue
+		}
+
+		collaborators = append(collaborators, space.CollaboratorInfo{
+			UserID:     collaboratorID,
+			Username:   username,
+			Permission: permission,
+		})
+	}
+
+	logger.Info("用户 %s 获取了空间 %s 的协作者列表", userID, spaceID)
+	return c.JSON(fiber.Map{
+		"code":    fiber.StatusOK,
+		"message": "获取协作者列表成功",
+		"data": space.ListCollaboratorsResponse{
+			Collaborators: collaborators,
 		},
 	})
 }

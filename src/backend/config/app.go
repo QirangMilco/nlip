@@ -42,6 +42,7 @@ type Config struct {
 	} `json:"space"`
 
 	Email struct {
+		Enabled  bool   `json:"enabled"`
 		Host     string `json:"host"`
 		Port     int    `json:"port"`
 		Username string `json:"username"`
@@ -109,6 +110,16 @@ func LoadConfig() {
 		}{
 			AllowList: defaultAllowedExtensions,
 			DenyList:  []string{},
+		},
+		Email: struct {
+			Enabled  bool   `json:"enabled"`
+			Host     string `json:"host"`
+			Port     int    `json:"port"`
+			Username string `json:"username"`
+			Password string `json:"password"`
+			From     string `json:"from"`
+		}{
+			Enabled: true,
 		},
 	}
 
@@ -277,6 +288,9 @@ func loadProdConfig() {
 	}
 	if emailFrom := os.Getenv("EMAIL_FROM"); emailFrom != "" {
 		AppConfig.Email.From = emailFrom
+	}
+	if emailEnabled := os.Getenv("EMAIL_ENABLED"); emailEnabled != "" {
+		AppConfig.Email.Enabled = emailEnabled == "true"
 	}
 
 	logger.Info("生产环境配置加载完成")

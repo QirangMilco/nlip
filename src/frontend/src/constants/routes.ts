@@ -3,7 +3,6 @@ export const PUBLIC_ROUTES = [
   '/login',
   '/register',
   '/clips/public-space',
-  '/spaces/invite/:token',
 ] as const;
 
 // 检查路径是否匹配公共路由

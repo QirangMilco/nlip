@@ -118,6 +118,28 @@ func createTables() error {
         return err
     }
 
+    // 邀请表
+    logger.Debug("创建邀请表")
+    _, err = DB.Exec(`
+        CREATE TABLE IF NOT EXISTS nlip_invites (
+            token_hash VARCHAR(64) PRIMARY KEY,
+            space_id VARCHAR(32) NOT NULL,
+            permission VARCHAR(32) NOT NULL,
+            created_by VARCHAR(32) NOT NULL,
+            created_at DATETIME NOT NULL,
+            expires_at DATETIME NOT NULL,
+            used_at DATETIME,
+            used_by VARCHAR(32),
+            FOREIGN KEY (space_id) REFERENCES nlip_spaces(id),
+            FOREIGN KEY (created_by) REFERENCES nlip_users(id),
+            FOREIGN KEY (used_by) REFERENCES nlip_users(id)
+        )
+    `)
+    if err != nil {
+        logger.Error("创建邀请表失败: %v", err)
+        return err
+    }
+
     // 创建触发器，自动更新 updated_at 字段
     logger.Debug("创建更新时间触发器")
     _, err = DB.Exec(`
@@ -162,6 +184,10 @@ func createTables() error {
         {"idx_clips_space", "nlip_clipboard_items", "space_id"},
         {"idx_clips_creator", "nlip_clipboard_items", "creator_id"},
         {"idx_clips_timestamps", "nlip_clipboard_items", "created_at, updated_at"},
+        {"idx_invites_token", "nlip_invites", "token_hash"},
+        {"idx_invites_space", "nlip_invites", "space_id"},
+        {"idx_invites_expires", "nlip_invites", "expires_at"},
+        {"idx_invited_users", "nlip_spaces", "(JSON_EXTRACT(invited_users, '$'))"},
     }
 
     for _, idx := range indexes {

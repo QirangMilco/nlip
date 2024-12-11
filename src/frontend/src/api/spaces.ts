@@ -1,5 +1,5 @@
 import http from './http';
-import { CreateSpaceRequest, UpdateSpaceRequest, SpaceStats } from '@/store/types';
+import { CreateSpaceRequest, UpdateSpaceRequest, SpaceStats, VerifyInviteTokenResponse, ListCollaboratorsResponse } from '@/store/types';
 import { Space } from '@/store/slices/spaceSlice';
 import { store } from '@/store';
 
@@ -72,8 +72,8 @@ export const inviteCollaborator = async (
 };
 
 // 验证邀请token
-export const verifyInviteToken = async (token: string) => {
-  const response = await http.get(`/spaces/collaborators/verify-invite/${token}`);
+export const verifyInviteToken = async (token: string): Promise<VerifyInviteTokenResponse> => {
+  const response = await http.post(`/spaces/collaborators/verify-invite`, { token });
   return response.data;
 };
 
@@ -85,5 +85,10 @@ export const acceptInvite = async (token: string) => {
 
 export const getSpaceStats = async (spaceId: string): Promise<SpaceStats> => {
   const response = await http.get(`/spaces/${spaceId}/stats`);
+  return response.data;
+};
+
+export const getSpaceCollaborators = async (spaceId: string): Promise<ListCollaboratorsResponse> => {
+  const response = await http.get(`/spaces/${spaceId}/collaborators`);
   return response.data;
 }; 

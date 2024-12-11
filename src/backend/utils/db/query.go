@@ -53,4 +53,10 @@ func ExecTx(tx *sql.Tx, query string, args ...interface{}) (sql.Result, error) {
 	}
 
 	return result, nil
-} 
+}
+
+// QueryRowTx 在事务中执行单行查询
+func QueryRowTx(tx *sql.Tx, query string, args ...interface{}) *sql.Row {
+	logger.Debug("在事务中执行单行查询: %s, 参数: %v", query, args)
+	return tx.QueryRow(query, args...)
+}

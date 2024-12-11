@@ -17,6 +17,9 @@ const AppRoutes: React.FC = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       
+      {/* 邀请确认页面不需要登录就能访问 */}
+      <Route path="/invite/:token" element={<InviteConfirmation />} />
+
       {/* 需要认证的路由 */}
       <Route
         path="/clips"
@@ -45,18 +48,9 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* 邀请确认页面不需要登录就能访问 */}
-      <Route
-        path="/spaces/invite/:token"
-        element={
-          <PrivateRoute>
-            <InviteConfirmation />
-          </PrivateRoute>
-        }
-      />
       
       {/* 未匹配路由重定向到公共空间 */}
-      <Route path="*" element={<Navigate to="/spaces/public-space" replace />} />
+      <Route path="*" element={<Navigate to="/clips/public-space" replace />} />
     </Routes>
   );
 };

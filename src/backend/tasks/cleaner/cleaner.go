@@ -45,6 +45,10 @@ func StartCleanupTask() {
 		if err := cleanOverflowItems(); err != nil {
 			logger.Error("清理超量内容失败: %v", err)
 		}
+		// 添加清理过期邀请码
+		if err := cleanExpiredInvites(); err != nil {
+			logger.Error("清理过期邀请码失败: %v", err)
+		}
 
 		// 设置定时器
 		ticker := time.NewTicker(1 * time.Hour)
@@ -58,6 +62,10 @@ func StartCleanupTask() {
 			}
 			if err := cleanOverflowItems(); err != nil {
 				logger.Error("清理超量内容失败: %v", err)
+			}
+			// 添加定时清理过期邀请码
+			if err := cleanExpiredInvites(); err != nil {
+				logger.Error("清理过期邀请码失败: %v", err)
 			}
 			logger.Debug("定时清理任务完成")
 		}
@@ -378,4 +386,26 @@ func CleanSpaceOverflow(spaceID string) error {
 	}
 
 	return lastErr
+}
+
+// cleanExpiredInvites 清理过期和已使用的邀请码记录
+func cleanExpiredInvites() error {
+	return runWithLock(func() error {
+		logger.Debug("开始清理邀请码")
+		
+		result, err := db.Exec(config.DB, `
+			DELETE FROM nlip_invites 
+			WHERE used_at IS NOT NULL 
+			   OR expires_at < datetime('now')
+		`)
+		if err != nil {
+			return fmt.Errorf("清理邀请码失败: %w", err)
+		}
+		
+		if count, err := result.RowsAffected(); err == nil {
+			logger.Info("已清理 %d 条邀请码记录", count)
+		}
+		
+		return nil
+	})
 }

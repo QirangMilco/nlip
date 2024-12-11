@@ -13,7 +13,7 @@ type Space struct {
 	RetentionDays int               `json:"retentionDays"`
 	CreatedAt     time.Time         `json:"createdAt"`
 	UpdatedAt     time.Time         `json:"updatedAt"`
-	InvitedUsers  map[string]string `json:"invitedUsers"`
+	InvitedUsers  []CollaboratorInfo `json:"invitedUsers"`
 }
 
 type CreateSpaceRequest struct {
@@ -21,14 +21,14 @@ type CreateSpaceRequest struct {
 	Type          string            `json:"type" validate:"omitempty,oneof=public private"`
 	MaxItems      int               `json:"maxItems" validate:"required,min=1"`
 	RetentionDays int               `json:"retentionDays" validate:"required,min=1"`
-	InvitedUsers  map[string]string `json:"invitedUsers" validate:"omitempty,dive,keys,required,endkeys,oneof=edit view"`
+	InvitedUsers  []CollaboratorInfo `json:"invitedUsers" validate:"omitempty,dive,keys,required,endkeys,oneof=edit view"`
 }
 
 type UpdateSpaceRequest struct {
 	Name          string            `json:"name" validate:"omitempty,min=2,max=50"`
 	MaxItems      int               `json:"maxItems,omitempty"`
 	RetentionDays int               `json:"retentionDays,omitempty"`
-	InvitedUsers  map[string]string `json:"invitedUsers,omitempty" validate:"omitempty,dive,keys,required,endkeys,oneof=edit view"`
+	InvitedUsers  []CollaboratorInfo `json:"invitedUsers,omitempty" validate:"omitempty,dive,keys,required,endkeys,oneof=edit view"`
 }
 
 type SpaceResponse struct {
@@ -70,6 +70,32 @@ type InviteCollaboratorResponse struct {
 type VerifyInviteTokenResponse struct {
 	SpaceID   string `json:"spaceId"`
 	SpaceName string `json:"spaceName"`
-	InviterID string `json:"inviterId"`
 	InviterName string `json:"inviterName"`
+	Permission        string `json:"permission"`
+	IsCollaborator    bool   `json:"isCollaborator"`
+	CurrentPermission string `json:"currentPermission"`
 }
+
+// ValidateInviteRequest 验证邀请令牌请求
+type ValidateInviteRequest struct {
+	Token string `json:"token" validate:"required"`
+}
+
+// AcceptInviteRequest 接受邀请请求
+type AcceptInviteRequest struct {
+	Token string `json:"token" validate:"required"`
+}
+
+// CollaboratorInfo 协作者信息
+type CollaboratorInfo struct {
+	UserID     string `json:"userId"`
+	Username   string `json:"username"`
+	Email      string `json:"email"`
+	Permission string `json:"permission"`
+}
+
+// ListCollaboratorsResponse 获取协作者列表的响应
+type ListCollaboratorsResponse struct {
+	Collaborators []CollaboratorInfo `json:"collaborators"`
+}
+
