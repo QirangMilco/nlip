@@ -229,8 +229,53 @@
 - **Request Body**:
 ```typescript
 {
-  collaboratorId: string;
-  permission: 'edit' | 'view';
+  email: string;           // Invitee's email
+  permission: 'edit' | 'view';  // Permission type
+}
+```
+- **Response**:
+```typescript
+{
+  code: 200;
+  message: string;
+  data: {
+    inviteLink: string;    // Invitation link
+  }
+}
+```
+
+#### Verify Invite Token
+- **POST** `/spaces/collaborators/verify-invite`
+- **Authentication Required**: Yes
+- **Request Body**:
+```typescript
+{
+  token: string;    // Invitation token
+}
+```
+- **Response**:
+```typescript
+{
+  code: 200;
+  message: string;
+  data: {
+    spaceId: string;           // Space ID
+    spaceName: string;         // Space name
+    inviterName: string;       // Inviter's name
+    permission: string;        // Granted permission
+    isCollaborator: boolean;   // Whether already a collaborator
+    currentPermission: string; // Current permission (if already a collaborator)
+  }
+}
+```
+
+#### Accept Invite
+- **POST** `/spaces/collaborators/accept-invite`
+- **Authentication Required**: Yes
+- **Request Body**:
+```typescript
+{
+  token: string;    // Invitation token
 }
 ```
 - **Response**:
@@ -446,6 +491,16 @@ Common error status codes:
    - For large file uploads, consider using chunked uploads
    - List data retrieval supports pagination
 
+6. Collaborator Features:
+   - Space owners can invite other users as collaborators
+   - Collaborator permissions: edit or view
+   - Invitation links expire after 24 hours
+   - If email is enabled, system will automatically send invitation emails
+
+7. Space Types:
+   - public: Public spaces, accessible by all, supports guest uploads
+   - private: Private spaces, accessible only by owner and collaborators
+
 ## API Version Control
 
 Current API version: v1
@@ -512,8 +567,10 @@ In development environment:
       max_size: number;        // Maximum upload file size (bytes)
     };
     space: {
-      default_max_items: number;       // Default maximum items per space
-      default_retention_days: number;   // Default retention days per space
+      default_max_items: number;         // Default maximum items per space
+      default_retention_days: number;     // Default retention days
+      max_items_limit: number;           // Maximum items limit
+      max_retention_days_limit: number;   // Maximum retention days limit
     };
     security: {
       token_expiry: string;    // Token expiry time
@@ -533,15 +590,11 @@ In development environment:
     allow_list?: string[];    // Allowed file types
     deny_list?: string[];     // Denied file types
   };
-  upload?: {
-    max_size?: number;        // Maximum upload file size (bytes)
-  };
-  space?: {
-    default_max_items?: number;       // Default maximum items per space
-    default_retention_days?: number;   // Default retention days per space
-  };
-  security?: {
-    token_expiry?: string;    // Token expiry time
+  space_defaults?: {
+    max_items?: number;              // Default maximum items
+    retention_days?: number;         // Default retention days
+    max_items_limit?: number;        // Maximum items limit
+    max_retention_days_limit?: number; // Maximum retention days limit
   };
 }
 ```
@@ -553,10 +606,10 @@ In development environment:
 }
 ```
 
-Note:
+Notes:
 1. All settings are optional, only provided settings will be updated
-2. File types should be provided as extensions without a dot (e.g., "jpg" not ".jpg")
+2. File types should be provided as extensions without dot (e.g., "jpg" not ".jpg")
 3. Token expiry time should be in time string format (e.g., "24h", "7d")
-4. Settings take effect immediately and are saved to the configuration file
-5. Public space uploads can be done by guests using the `/guest-upload` endpoint.
-6. Ensure the `creator` field is set to "guest" for guest uploads.
+4. Settings take effect immediately and are saved to configuration file
+5. Public space uploads can be done by guests using the `/guest-upload` endpoint
+6. Ensure the `creator` field is set to "guest" for guest uploads

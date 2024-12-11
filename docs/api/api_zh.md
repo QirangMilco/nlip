@@ -194,16 +194,65 @@
 #### 邀请协作者
 - **POST** `/spaces/:id/collaborators/invite`
 - **需要认证**: 是
-- **请求体**:  ```typescript
-  {
-    collaboratorId: string;
-    permission: 'edit' | 'view';
-  }  ```
-- **响应**:  ```typescript
-  {
-    code: 200;
-    message: string;
-  }  ```
+- **请求体**:  
+```typescript
+{
+  email: string;           // 被邀请者邮箱
+  permission: 'edit' | 'view';  // 权限类型
+}
+```
+- **响应**:  
+```typescript
+{
+  code: 200;
+  message: string;
+  data: {
+    inviteLink: string;    // 邀请链接
+  }
+}
+```
+
+#### 验证邀请令牌
+- **POST** `/spaces/collaborators/verify-invite`
+- **需要认证**: 是
+- **请求体**:
+```typescript
+{
+  token: string;    // 邀请令牌
+}
+```
+- **响应**:
+```typescript
+{
+  code: 200;
+  message: string;
+  data: {
+    spaceId: string;           // 空间ID
+    spaceName: string;         // 空间名称
+    inviterName: string;       // 邀请人名称
+    permission: string;        // 授予的权限
+    isCollaborator: boolean;   // 是否已是协作者
+    currentPermission: string; // 当前权限(如果已是协作者)
+  }
+}
+```
+
+#### 接受邀请
+- **POST** `/spaces/collaborators/accept-invite`
+- **需要认证**: 是
+- **请求体**:
+```typescript
+{
+  token: string;    // 邀请令牌
+}
+```
+- **响应**:
+```typescript
+{
+  code: 200;
+  message: string;
+}
+```
 
 #### 删除协作者
 - **DELETE** `/spaces/:id/collaborators/remove`
@@ -396,6 +445,16 @@
    - 大文件上传建议使用分片上传
    - 获取列表数据支持分页
 
+6. 协作者功能说明：
+   - 空间所有者可以邀请其他用户作为协作者
+   - 协作者权限分为：编辑(edit)和查看(view)
+   - 邀请链接有效期为24小时
+   - 如果启用了邮件功能，系统会自动发送邀请邮件
+
+7. 空间类型说明：
+   - public: 公共空间，所有人可访问，支持游客上传
+   - private: 私有空间，仅所有者和协作者可访问
+
 ## API版本控制
 
 当前API版本: v1
@@ -462,8 +521,10 @@ interface WSMessage {
       max_size: number;        // 最大上传文件大小(字节)
     };
     space: {
-      default_max_items: number;       // 空间默认最大条目数
-      default_retention_days: number;   // 空间默认保留天数
+      default_max_items: number;         // 空间默认最大条目数
+      default_retention_days: number;     // 空间默认保留天数
+      max_items_limit: number;           // 空间最大条目数上限
+      max_retention_days_limit: number;   // 保留天数上限
     };
     security: {
       token_expiry: string;    // 令牌过期时间
@@ -483,15 +544,11 @@ interface WSMessage {
     allow_list?: string[];    // 允许的文件类型列表
     deny_list?: string[];     // 禁止的文件类型列表
   };
-  upload?: {
-    max_size?: number;        // 最大上传文件大小(字节)
-  };
-  space?: {
-    default_max_items?: number;       // 空间默认最大条目数
-    default_retention_days?: number;   // 空间默认保留天数
-  };
-  security?: {
-    token_expiry?: string;    // 令牌过期时间
+  space_defaults?: {
+    max_items?: number;              // 默认最大条目数
+    retention_days?: number;         // 默认保留天数
+    max_items_limit?: number;        // 最大条目数上限
+    max_retention_days_limit?: number; // 保留天数上限
   };
 }
 ```
@@ -502,7 +559,6 @@ interface WSMessage {
   message: string;
 }
 ```
-
 注意：
 1. 所有设置项都是可选的，只更新提供的设置
 2. 文件类型只需提供扩展名，不含点号(如: "jpg" 而不是 ".jpg")
@@ -510,3 +566,4 @@ interface WSMessage {
 4. 更新设置后会立即生效并保存到配置文件
 5. 公共空间的上传可以通过 `/guest-upload` 接口由游客完成。
 6. 确保游客上传时 `creator` 字段设置为 "guest"。
+

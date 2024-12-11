@@ -36,20 +36,31 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
 ### Core Features
 - **Multi-platform Support**: Web, Browser Extension, Mobile App
 - **Content Sharing**: Seamless text and file sharing
-- **Space Management**: Space-based content organization and permission management
+- **Space Management**: 
+  - Space-based content organization
+  - Advanced permission management
+  - Collaborator invitation system with email support
+  - Fine-grained collaborator access control
 - **Real-time Sync**: Real-time updates across all platforms
 - **Guest Features**
   - Guest uploads in public spaces
   - Guest content preview support
-- **Smart Management**: Automatic expired content cleanup and overflow management
+- **Smart Management**: 
+  - Automatic expired content cleanup
+  - Overflow management
+  - Collaborator activity tracking
 
 ### Security Features
 - **Authentication**: JWT-based user authentication
-- **Access Control**: Fine-grained space-level permission management
+- **Access Control**: 
+  - Space-level permission management
+  - Role-based collaborator permissions (view/edit)
+  - Secure invitation system
 - **Protection**
   - Rate limiting
   - File type filtering
   - Content expiration mechanism
+  - Email verification for invitations
 
 ### User Experience
 - Responsive design
