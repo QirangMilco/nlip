@@ -3,33 +3,45 @@
 chcp 65001 > nul
 echo 开始构建前端项目...
 
-:: 执行npm构建
-call npm run build
+:: 重定向输出到build.log
+(
+    :: 执行npm构建
+    call npm run build
 
-if errorlevel 1 (
-    echo 构建失败！
-    pause
-    exit /b 1
-)
+    if errorlevel 1 (
+        echo 构建失败！
+        pause
+        exit /b 1
+    )
 
-echo 构建完成，开始移动文件...
+    echo 构建完成，开始移动文件...
 
-:: 设置目标目录
-set "DEST_DIR=..\backend\static"
+    :: 设置目标目录
+    set "DEST_DIR=..\backend\static"
 
-:: 如果目标目录存在，则删除
-if exist "%DEST_DIR%" (
-    echo 删除旧的static目录...
-    rd /s /q "%DEST_DIR%"
-)
+    :: 如果目标目录存在，则删除
+    if exist "%DEST_DIR%" (
+        echo 删除旧的static目录...
+        rd /s /q "%DEST_DIR%"
+    )
 
-:: 创建目标目录
-mkdir "%DEST_DIR%"
+    :: 创建目标目录
+    mkdir "%DEST_DIR%"
 
-:: 复制整个dist文件夹到static目录
-echo 复制dist文件夹到static目录...
-xcopy "dist" "%DEST_DIR%\dist\" /E /I /H /Y
+    :: 复制整个dist文件夹到static目录
+    echo 复制dist文件夹到static目录...
+    xcopy "dist" "%DEST_DIR%\dist\" /E /I /H /Y
 
-echo 完成！
+    echo 完成！
 
-pause
+    :: 若未报错，则脚本运行完毕后直接关闭控制台，若报错，则暂停，等待用户输入
+    if errorlevel 0 (
+        exit /b 0
+    ) else (
+        pause
+        exit /b 1
+    )
+) > build.log 2>&1
+
+:: 显示日志文件内容
+type build.log

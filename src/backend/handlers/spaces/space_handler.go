@@ -913,14 +913,14 @@ func HandlePublicSpaceStats(c *fiber.Ctx) error {
 func HandleSpaceStats(c *fiber.Ctx) error {
 	spaceID := c.Params("id")
 	userID := c.Locals("userId").(string)
-	isAdmin := c.Locals("isAdmin").(bool)
 
 	// 检查空间是否存在并获取基本信息
 	var s space.Space
+	var collaboratorsJSON sql.NullString
 	err := config.DB.QueryRow(`
-		SELECT id, name, type, owner_id
+		SELECT id, name, type, owner_id, collaborators
 		FROM nlip_spaces WHERE id = ?
-	`, spaceID).Scan(&s.ID, &s.Name, &s.Type, &s.OwnerID)
+	`, spaceID).Scan(&s.ID, &s.Name, &s.Type, &s.OwnerID, &collaboratorsJSON)
 
 	if err == sql.ErrNoRows {
 		logger.Warning("尝试获取不存在的空间统计信息: %s", spaceID)
@@ -930,10 +930,19 @@ func HandleSpaceStats(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "获取统计信息失败")
 	}
 
-	// 检查权限
-	if s.Type != "public" && !isAdmin && s.OwnerID != userID {
-		logger.Warning("用户 %s 尝试获取无权限的空间统计信息 %s", userID, spaceID)
-		return fiber.NewError(fiber.StatusForbidden, "没有权限查看此空间统计信息")
+	// 初始化空的协作者列表
+	collaboratorsMap := make(map[string]string)
+
+	// 只有当 collaboratorsJSON 有值时才进行解析
+	if collaboratorsJSON.Valid && collaboratorsJSON.String != "" {
+		if err := json.Unmarshal([]byte(collaboratorsJSON.String), &collaboratorsMap); err != nil {
+			logger.Error("解析协作者列表失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "处理协作者数据失败")
+		}
+	}
+
+	if s.Type != "public" && s.OwnerID != userID && collaboratorsMap[userID] == "" {
+		return fiber.NewError(fiber.StatusForbidden, "没有权限查看此空间的统计信息")
 	}
 
 	// 获取剪贴板数量

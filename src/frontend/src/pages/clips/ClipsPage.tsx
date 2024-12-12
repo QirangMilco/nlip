@@ -125,6 +125,7 @@ const ClipsPage: React.FC = () => {
 
   const fetchCollaborators = useCallback(async () => {
     if (!spaceId) return;
+    if (currentSpace?.type === 'public') return;
     try {
       setLoadingCollaborators(true);
       const collabs = await getSpaceCollaborators(spaceId);
@@ -138,6 +139,7 @@ const ClipsPage: React.FC = () => {
 
   useEffect(() => {
     if (spaceId) {
+      fetchSpaceStats();
       fetchCollaborators();
     }
   }, [spaceId, fetchCollaborators]);
