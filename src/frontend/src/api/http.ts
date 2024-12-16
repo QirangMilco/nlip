@@ -2,10 +2,9 @@ import axios from 'axios';
 import { message } from 'antd';
 import { store } from '@/store';
 import { clearAuth } from '@/store/slices/authSlice';
-// import { isPublicRoute } from '@/constants/routes';
 
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: window.location.origin + '/api/v1/nlip',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

@@ -9,12 +9,13 @@ const { Text } = Typography;
 interface SpaceStatsProps {
   space: SpaceType;
   clipCount: number;
+  ownerUsername: string;
   loading: boolean;
   collaborators: Collaborator[];
   onSpaceUpdate: () => Promise<void>;
 }
 
-const SpaceStats: React.FC<SpaceStatsProps> = ({ space, clipCount, loading, collaborators = [], onSpaceUpdate }) => {
+const SpaceStats: React.FC<SpaceStatsProps> = ({ space, clipCount, ownerUsername, loading, collaborators = [], onSpaceUpdate }) => {
   const isPublicSpace = space.type === 'public';
   const usagePercent = Math.round((clipCount / space.maxItems) * 100);
   const collaboratorCount = Array.isArray(collaborators) ? collaborators.length : 0;
@@ -65,6 +66,13 @@ const SpaceStats: React.FC<SpaceStatsProps> = ({ space, clipCount, loading, coll
               collaborators={collaborators}
               onCollaboratorUpdate={onSpaceUpdate}
             />
+          </div>
+        )}
+
+        {/* 显示空间所有者昵称 */}
+        {ownerUsername && (
+          <div style={{ marginTop: 16 }}>
+            <Text type="secondary">空间所有者: {ownerUsername}</Text>
           </div>
         )}
       </Space>

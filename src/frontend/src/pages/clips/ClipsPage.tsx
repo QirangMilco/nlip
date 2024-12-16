@@ -901,6 +901,7 @@ const ClipsPage: React.FC = () => {
           <SpaceStatsCard 
             space={currentSpace}
             clipCount={spaceStats?.clipCount || 0}
+            ownerUsername={spaceStats?.ownerUsername || ''}
             collaborators={collaborators}
             loading={loadingStats || loadingCollaborators}
             onSpaceUpdate={async () => {

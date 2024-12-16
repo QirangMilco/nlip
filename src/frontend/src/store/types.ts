@@ -112,6 +112,7 @@ export interface SpaceStats {
   clipCount: number;
   totalSize: number;
   lastUpdated: string;
+  ownerUsername: string;
 }
 
 export interface UpdateClipRequest {

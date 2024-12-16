@@ -280,7 +280,7 @@ func loadProdConfig() {
 	}
 
 	// 环境变量优先级高于配置文件
-	if port := os.Getenv("PORT"); port != "" {
+	if port := os.Getenv("SERVER_PORT"); port != "" {
 		AppConfig.ServerPort = port
 	}
 	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {

@@ -489,15 +489,16 @@ func HandleVerifyInviteToken(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 	logger.Debug("验证邀请令牌请求: userID=%s, token=%s", userID, req.Token)
 
-	// 从数据库中查询邀请信息
-	var spaceID, createdBy, permission string
+	// 从数据库中查询邀请信息和邀请者用户名
+	var spaceID, createdBy, permission, inviterName string
 	err := config.DB.QueryRow(`
-		SELECT space_id, created_by, permission
-			FROM nlip_invites 
-			WHERE token_hash = ? 
-				AND used_at IS NULL 
-				AND expires_at > datetime('now')
-	`, req.Token).Scan(&spaceID, &createdBy, &permission)
+		SELECT i.space_id, i.created_by, i.permission, u.username
+		FROM nlip_invites i
+		JOIN nlip_users u ON i.created_by = u.id
+		WHERE i.token_hash = ? 
+			AND i.used_at IS NULL 
+			AND i.expires_at > datetime('now')
+	`, req.Token).Scan(&spaceID, &createdBy, &permission, &inviterName)
 
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusBadRequest, "无效的邀请链接或已过期")
@@ -526,7 +527,7 @@ func HandleVerifyInviteToken(c *fiber.Ctx) error {
 		"data": space.VerifyInviteTokenResponse{
 			SpaceID:        s.ID,
 			SpaceName:      s.Name,
-			InviterName:    s.OwnerID,
+			InviterName:    inviterName,
 			Permission:     permission,
 			IsCollaborator: isCollaborator,
 		},
@@ -643,7 +644,6 @@ func HandleRemoveCollaborator(c *fiber.Ctx) error {
 	if s.CollaboratorsMap == nil || s.CollaboratorsMap[req.CollaboratorID] == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "协作者不存在")
 	}
-
 
 	// 删除协作者
 	delete(s.CollaboratorsMap, req.CollaboratorID)
@@ -797,6 +797,7 @@ func HandleSpaceStats(c *fiber.Ctx) error {
 
 	// 获取剪贴板数量
 	var clipCount int
+	var ownerUsername string
 	err := config.DB.QueryRow(`
 		SELECT COUNT(*) FROM nlip_clipboard_items 
 		WHERE space_id = ?
@@ -807,11 +808,23 @@ func HandleSpaceStats(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "获取统计信息失败")
 	}
 
+	if s.Type == "private" && s.OwnerID != "" {
+		err = config.DB.QueryRow(`
+			SELECT username FROM nlip_users WHERE id = ?
+		`, s.OwnerID).Scan(&ownerUsername)
+
+		if err != nil {
+			logger.Error("获取空间所有者用户名失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "获取空间所有者用户名失败")
+		}
+	}
+
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "获取空间统计信息成功",
 		"data": fiber.Map{
-			"clipCount": clipCount,
+			"clipCount":     clipCount,
+			"ownerUsername": ownerUsername,
 		},
 	})
 }

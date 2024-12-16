@@ -87,17 +87,20 @@ const CollaboratorManagement: React.FC<CollaboratorManagementProps> = ({
       dataIndex: 'permission',
       key: 'permission',
       render: (permission: string, record: Collaborator) => {
-        return (
-          <Select
-            value={permission}
-            disabled={!space.isOwner || record.id === space.ownerId}
-            onChange={(value) => handlePermissionChange(record.id, value as 'edit' | 'view')}
-            style={{ width: 120 }}
-          >
-            <Select.Option value="edit">可编辑</Select.Option>
-            <Select.Option value="view">可查看</Select.Option>
-          </Select>
-        );
+        if (space.isOwner && record.id !== space.ownerId) {
+          return (
+            <Select
+              value={permission}
+              onChange={(value) => handlePermissionChange(record.id, value as 'edit' | 'view')}
+              style={{ width: 120 }}
+            >
+              <Select.Option value="edit">可编辑</Select.Option>
+              <Select.Option value="view">可查看</Select.Option>
+            </Select>
+          );
+        } else {
+          return <span>{permission === 'edit' ? '可编辑' : '可查看'}</span>;
+        }
       },
     },
     // 只有空间拥有者才显示操作列
