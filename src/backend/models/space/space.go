@@ -14,6 +14,7 @@ type Space struct {
 	CreatedAt     time.Time          `json:"createdAt"`
 	UpdatedAt     time.Time          `json:"updatedAt"`
 	Collaborators []CollaboratorInfo `json:"collaborators"`
+	CollaboratorsMap map[string]string `json:"collaboratorsMap"`
 }
 
 type CreateSpaceRequest struct {
@@ -73,7 +74,6 @@ type VerifyInviteTokenResponse struct {
 	InviterName       string `json:"inviterName"`
 	Permission        string `json:"permission"`
 	IsCollaborator    bool   `json:"isCollaborator"`
-	CurrentPermission string `json:"currentPermission"`
 }
 
 // ValidateInviteRequest 验证邀请令牌请求

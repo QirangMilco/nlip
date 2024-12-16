@@ -41,22 +41,6 @@ func setupV1Routes(api fiber.Router) {
 		})
 	})
 
-	// 公共空间路由
-	publicSpaceRoutes := api.Group("/spaces/public-space")
-	publicSpaceRoutes.Get("/clips/list", clips.HandleListPublicClips)
-	publicSpaceRoutes.Post("/clips/guest-upload",
-		validator.ValidateBody(&clip.UploadClipRequest{}),
-		clips.HandleUploadPublicClip)
-	publicSpaceRoutes.Post("/clips/upload",
-		auth.AuthMiddleware(),
-		validator.ValidateBody(&clip.UploadClipRequest{}),
-		clips.HandleUploadClip)
-	publicSpaceRoutes.Get("/clips/:id", clips.HandleGetPublicClip)
-	publicSpaceRoutes.Get("/stats", spaces.HandlePublicSpaceStats)
-
-	// 添加获取空间列表的公开路由
-	api.Get("/spaces/public-list", spaces.HandleListSpaces)
-
 	// 2. 认证路由 - 不需要token
 	authRoutes := api.Group("/auth")
 	authRoutes.Post("/login", validator.ValidateBody(&user.LoginRequest{}), authHandler.HandleLogin)
@@ -82,15 +66,15 @@ func setupV1Routes(api fiber.Router) {
 	spaceRoutes.Post("/create",
 		validator.ValidateBody(&space.CreateSpaceRequest{}),
 		spaces.HandleCreateSpace)
-	spaceRoutes.Put("/:id",
+	spaceRoutes.Put("/:spaceId",
 		validator.ValidateBody(&space.UpdateSpaceRequest{}),
 		spaces.HandleUpdateSpace)
-	spaceRoutes.Delete("/:id", spaces.HandleDeleteSpace)
-	spaceRoutes.Get("/:id/stats", spaces.HandleSpaceStats)
+	spaceRoutes.Delete("/:spaceId", spaces.HandleDeleteSpace)
+	spaceRoutes.Get("/:spaceId/stats", spaces.HandleSpaceStats)
 
 	// 协作者相关路由
-	spaceRoutes.Get("/:id/collaborators", spaces.HandleListCollaborators)
-	spaceRoutes.Post("/:id/collaborators/invite",
+	spaceRoutes.Get("/:spaceId/collaborators", spaces.HandleListCollaborators)
+	spaceRoutes.Post("/:spaceId/collaborators/invite",
 		validator.ValidateBody(&space.InviteCollaboratorRequest{}),
 		spaces.HandleInviteCollaborator)
 	spaceRoutes.Post("/collaborators/verify-invite",
@@ -99,29 +83,29 @@ func setupV1Routes(api fiber.Router) {
 	spaceRoutes.Post("/collaborators/accept-invite",
 		validator.ValidateBody(&space.AcceptInviteRequest{}),
 		spaces.HandleAcceptInvite)
-	spaceRoutes.Delete("/:id/collaborators/remove",
+	spaceRoutes.Delete("/:spaceId/collaborators/remove",
 		validator.ValidateBody(&space.RemoveCollaboratorRequest{}),
 		spaces.HandleRemoveCollaborator)
-	spaceRoutes.Put("/:id/collaborators/update-permissions",
+	spaceRoutes.Put("/:spaceId/collaborators/update-permissions",
 		validator.ValidateBody(&space.UpdateCollaboratorPermissionsRequest{}),
 		spaces.HandleUpdateCollaboratorPermissions)
 
 	// 更新空间设置路由
-	spaceRoutes.Put("/:id/settings",
+	spaceRoutes.Put("/:spaceId/settings",
 		validator.ValidateBody(&space.UpdateSpaceSettingsRequest{}),
 		spaces.HandleUpdateSpaceSettings)
 
 	// 剪贴板路由 - 所有操作都需要验证
 	clipRoutes := spaceRoutes.Group("/:spaceId/clips")
 	clipRoutes.Get("/list", clips.HandleListClips)
-	clipRoutes.Get("/:id", clips.HandleGetClip)
+	clipRoutes.Get("/:clipId", clips.HandleGetClip)
 	clipRoutes.Post("/upload",
 		validator.ValidateBody(&clip.UploadClipRequest{}),
 		clips.HandleUploadClip)
-	clipRoutes.Put("/:id",
+	clipRoutes.Put("/:clipId",
 		validator.ValidateBody(&clip.UpdateClipRequest{}),
 		clips.HandleUpdateClip)
-	clipRoutes.Delete("/:id", clips.HandleDeleteClip)
+	clipRoutes.Delete("/:clipId", clips.HandleDeleteClip)
 
 	// WebSocket路由 - 需要验证
 	authenticated.Get("/ws", websocket.New(ws.HandleWebSocket))

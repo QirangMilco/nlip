@@ -30,6 +30,8 @@ func main() {
 		log.Fatalf("配置验证失败: %v", err)
 	}
 
+	appLogger.SetAppEnv(config.AppConfig.AppEnv)
+
 	// 初始化数据库
 	if err := config.InitDatabase(); err != nil {
 		log.Fatalf("初始化数据库失败: %v", err)

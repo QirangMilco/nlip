@@ -8,7 +8,7 @@ import { store } from '@/store';
 // 移除重载定义，只保留一个返回类型
 export function useSpace() {
   const [spaces, setSpaces] = useState<SpaceWithPermission[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   // 获取空间列表并处理权限

@@ -157,7 +157,6 @@ export interface VerifyInviteTokenResponse {
   inviterName: string;
   permission: string;
   isCollaborator: boolean;
-  currentPermission?: string;
 }
 
 export interface ListCollaboratorsResponse {

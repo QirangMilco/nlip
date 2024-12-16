@@ -24,6 +24,8 @@ const (
     logTimeFormat = "2006-01-02 15:04:05"
 )
 
+var appEnv string = "development"
+
 func init() {
     // 创建日志目录
     if err := os.MkdirAll(logDir, 0755); err != nil {
@@ -47,6 +49,15 @@ func init() {
 
     // 启动日志轮转
     go rotateLogDaily()
+}
+
+func SetAppEnv(env string) {
+    appEnv = env
+    if appEnv == "development" {
+        Info("appEnv: %s", appEnv)
+    } else {
+        Info("appEnv: %s, 禁用日志DEBUG输出", appEnv)
+    }
 }
 
 // Close 关闭日志文件
@@ -134,9 +145,11 @@ func getCallerInfo() string {
 
 // Debug 记录调试日志
 func Debug(format string, v ...interface{}) {
-    msg := fmt.Sprintf(format, v...)
-    timeStr := time.Now().Format(logTimeFormat)
-    debugLogger.Printf("%s %s %s", timeStr, getCallerInfo(), msg)
+    if appEnv == "development" {
+        msg := fmt.Sprintf(format, v...)
+        timeStr := time.Now().Format(logTimeFormat)
+        debugLogger.Printf("%s %s %s", timeStr, getCallerInfo(), msg)
+    }
 }
 
 // Info 记录信息日志

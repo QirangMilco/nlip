@@ -232,7 +232,6 @@
     inviterName: string;       // 邀请人名称
     permission: string;        // 授予的权限
     isCollaborator: boolean;   // 是否已是协作者
-    currentPermission: string; // 当前权限(如果已是协作者)
   }
 }
 ```

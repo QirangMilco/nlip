@@ -72,26 +72,20 @@ const ClipsPage: React.FC = () => {
   const lastPosition = useRef(position);
 
   // 4. 计算属性 hooks
-  const currentSpace = useMemo(() => 
-    spaces.find(s => s.id === spaceId),
+  const currentSpace = useMemo(() => {
+    return spaces.find(s => s.id === spaceId)
+    },
     [spaces, spaceId]
   );
 
   // 添加用户认证状态检查
   const { token } = useSelector((state: RootState) => state.auth);
-  // const isPublicSpace = currentSpace?.type === 'public';
-  // const isGuest = isPublicSpace && !token;
-
-  // 更新权限检查函数
-  const hasEditPermission = useMemo(() => {
-    if (!currentSpace) return false;
-    return currentSpace.permission === 'edit';
-  }, [currentSpace]);
 
   // 更新空间管理权限检查
   const canManageSpace = useMemo(() => {
     if (!currentSpace || !currentUser) return false;
-    return currentUser.isAdmin || currentSpace.ownerId === currentUser.id;
+    if (currentSpace.type === 'public') return currentUser.isAdmin;
+    return currentSpace.ownerId === currentUser.id;
   }, [currentSpace, currentUser]);
 
   const sortedClips = useMemo(() => {
@@ -125,6 +119,7 @@ const ClipsPage: React.FC = () => {
 
   const fetchCollaborators = useCallback(async () => {
     if (!spaceId) return;
+    if (loadingSpaces) return;
     if (currentSpace?.type === 'public') return;
     try {
       setLoadingCollaborators(true);
@@ -135,35 +130,17 @@ const ClipsPage: React.FC = () => {
     } finally {
       setLoadingCollaborators(false);
     }
-  }, [spaceId]);
+  }, [spaceId, spaces, loadingSpaces]);
 
   useEffect(() => {
     if (spaceId) {
       fetchSpaceStats();
       fetchCollaborators();
     }
-  }, [spaceId, fetchCollaborators]);
+  }, [spaceId, fetchCollaborators, currentSpace?.type]);
 
   // 6. 事件处理函数
   const { handleSpaceChange: navigateToSpace } = useSpaceNavigation();
-
-  const fetchSpaceData = useCallback(async () => {
-    if (!spaceId) return;
-    try {
-      setLoadingStats(true);
-      // 并行请求统计信息和协作者信息
-      const [stats, collabs] = await Promise.all([
-        getSpaceStats(spaceId),
-        getSpaceCollaborators(spaceId)
-      ]);
-      setSpaceStats(stats);
-      setCollaborators(collabs);
-    } catch (error) {
-      console.error('获取空间数据失败:', error);
-    } finally {
-      setLoadingStats(false);
-    }
-  }, [spaceId]);
 
   const handleSpaceChange = useCallback(async (newSpaceId: string) => {
     try {
@@ -376,21 +353,22 @@ const ClipsPage: React.FC = () => {
     return fileName || '';
   }
 
+  function canEditClip(clip: Clip) {
+    if (!currentUser || !currentSpace) return false;
+    if (currentSpace.type === 'public') {
+      if (currentUser.isAdmin) {
+        return true;
+      }
+      if (!clip.creator)
+        return false;
+      return clip.creator.id === currentUser.id;
+    }
+    return currentSpace.ownerId === currentUser.id || currentSpace.permission === 'edit';
+  }
+
   // 修改剪贴板操作按钮的渲染逻辑
   const renderClipActions = (clip: Clip) => {
     const actions = [];
-
-    // 复制按钮总是可用
-    actions.push(
-      <Tooltip key="copy" title="复制">
-        <Button
-          type="text"
-          icon={<CopyOutlined />}
-          onClick={() => handleCopy(clip)}
-          disabled={!clip.content}
-        />
-      </Tooltip>
-    );
 
     // 下载按钮（如果是文件）
     if (clip.filePath) {
@@ -404,17 +382,33 @@ const ClipsPage: React.FC = () => {
         </Tooltip>
       );
     }
+    else {
+      actions.push(
+        <Tooltip key="copy" title="复制">
+          <Button
+            type="text"
+            icon={<CopyOutlined />}
+            onClick={() => handleCopy(clip)}
+            disabled={!clip.content}
+          />
+        </Tooltip>
+      );
+    }
 
     // 编辑和删除按钮需要编辑权限
-    if (hasEditPermission) {
-      actions.push(
-        <Tooltip key="edit" title="编辑">
+    if (canEditClip(clip)) {
+      if (!clip.filePath) {
+        actions.push(
+          <Tooltip key="edit" title="编辑">
           <Button
             type="text"
             icon={<EditOutlined />}
-            onClick={() => handleEdit(clip)}
-          />
-        </Tooltip>,
+              onClick={() => handleEdit(clip)}
+            />
+          </Tooltip>
+        );
+      }
+      actions.push(
         <Tooltip key="delete" title="删除">
           <Button
             type="text"
@@ -912,7 +906,8 @@ const ClipsPage: React.FC = () => {
             onSpaceUpdate={async () => {
               await Promise.all([
                 fetchSpaces(),
-                fetchSpaceData()
+                fetchSpaceStats(),
+                fetchCollaborators()
               ]);
             }}
           />

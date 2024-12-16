@@ -1,7 +1,6 @@
 import http from './http';
 import { Clip } from '@/store/types';
 import { store } from '@/store';
-import { SPACE_CONSTANTS } from '@/constants/spaces';
 
 // 获取空间下的所有剪贴板内容
 export const getClips = async (spaceId: string): Promise<Clip[]> => {
@@ -12,29 +11,6 @@ export const getClips = async (spaceId: string): Promise<Clip[]> => {
 // 上传新的剪贴板内容
 export const uploadClip = async (data: FormData): Promise<Clip> => {
   const spaceId = data.get('spaceId');
-  const spaceType = data.get('spaceType');
-  
-  // 判断是否为公共空间
-  if (spaceType === 'public') {
-    // 根据用户是否登录选择不同的上传路径
-    const isAuthenticated = !!store.getState().auth.token;
-    const uploadPath = isAuthenticated 
-      ? '/spaces/public-space/clips/upload'
-      : '/spaces/public-space/clips/guest-upload';
-      
-    if (!isAuthenticated) {
-      data.append('creator', SPACE_CONSTANTS.GUEST_USER);
-    }
-    
-    const response = await http.post(uploadPath, data, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data.clip;
-  }
-  
-  // 普通空间上传
   const response = await http.post(`/spaces/${spaceId}/clips/upload`, data, {
     headers: {
       'Content-Type': 'multipart/form-data',

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
 )
 
@@ -76,7 +77,7 @@ func LoadConfig() {
 
 	// 设置基础默认配置
 	AppConfig = Config{
-		AppEnv:      getEnv("APP_ENV", "development"),
+		AppEnv:      getEnv("APP_ENV", "production"),
 		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
 		TokenExpiry: 24 * time.Hour,
 		UploadDir:   getEnv("UPLOAD_DIR", filepath.Join(workDir, "uploads")),
@@ -131,6 +132,8 @@ func LoadConfig() {
 		loadProdConfig()
 	case "test":
 		loadTestConfig()
+	default:
+		loadProdConfig()
 	}
 
 	// 确保配置值在合理范围内
@@ -243,6 +246,7 @@ func loadProdConfig() {
 	// 先尝试从配置文件加载
 	configFile := getEnv("CONFIG_FILE", "config.yaml")
 	if _, err := os.Stat(configFile); err == nil {
+		logger.Debug("从配置文件加载生产环境配置: %s", configFile)
 		file, err := os.ReadFile(configFile)
 		if err == nil {
 			var config map[string]interface{}
@@ -254,6 +258,24 @@ func loadProdConfig() {
 			if err != nil {
 				logger.Error("解析配置文件失败: %v", err)
 			}
+			// logger.Debug("解析配置文件成功: %v", config)
+			// logger.Debug("before AppConfig: %v", AppConfig)
+			metadata := &mapstructure.Metadata{}
+			decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+				TagName:          "json",
+				WeaklyTypedInput:  true,
+				Metadata:         metadata,
+				Result:           &AppConfig,
+			})
+			if err != nil {
+				logger.Error("创建解码器失败: %v", err)
+			}
+			err = decoder.Decode(config)
+			if err != nil {
+				logger.Error("解析配置文件失败: %v", err)
+			}
+			// logger.Debug("after AppConfig: %v", AppConfig)
+			// logger.Debug("metadata: %v", metadata)
 		}
 	}
 

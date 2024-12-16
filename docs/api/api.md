@@ -264,7 +264,6 @@
     inviterName: string;       // Inviter's name
     permission: string;        // Granted permission
     isCollaborator: boolean;   // Whether already a collaborator
-    currentPermission: string; // Current permission (if already a collaborator)
   }
 }
 ```
