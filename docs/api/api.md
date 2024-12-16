@@ -149,6 +149,21 @@
 }
 ```
 
+### Get Space Stats Info
+- **GET** `/spaces/:id/stats`
+- **Authentication Required**: Yes
+- **Response**:
+```typescript
+{
+  code: 200;
+  data: {
+    clipCount: number;
+    ownerUsername: string;
+  };
+  message: string;
+}
+```
+
 ### Update Space
 - **PUT** `/spaces/:id`
 - **Authentication Required**: Yes
@@ -222,6 +237,24 @@
 ```
 
 ### Collaborator Management APIs
+
+#### List Collaborators
+- **GET** `/spaces/:id/collaborators/list`
+- **Authentication Required**: Yes
+- **Response**:
+```typescript
+{
+  code: 200;
+  data: {
+    collaborators: Array<{
+      id: string;
+      username: string;
+      permission: 'edit' | 'view';
+    }>;
+  };
+  message: string;
+}
+```
 
 #### Invite Collaborator
 - **POST** `/spaces/:id/collaborators/invite`

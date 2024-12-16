@@ -127,6 +127,21 @@
     message: string;
   }  ```
 
+### 获取空间统计信息
+- **GET** `/spaces/:spaceId/stats`
+- **需要认证**: 是
+- **响应**:  
+```typescript
+{
+  code: 200;
+  data: {
+    clipCount: number;
+    ownerUsername: string;
+  };
+  message: string;
+}
+```
+
 ### 更新空间
 - **PUT** `/spaces/:id`
 - **需要认证**: 是
@@ -190,6 +205,22 @@
   }  ```
 
 ### 协作者管理 API
+
+#### 获取协作者列表
+- **GET** `/spaces/:spaceId/collaborators`
+- **需要认证**: 是
+- **响应**:  ```typescript
+  {
+    code: 200;
+    data: {
+      collaborators: Array<{
+        id: string;
+        username: string;
+        permission: 'edit' | 'view';
+      }>;
+    };
+    message: string;
+  }  ```
 
 #### 邀请协作者
 - **POST** `/spaces/:id/collaborators/invite`
