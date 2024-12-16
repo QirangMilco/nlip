@@ -30,7 +30,7 @@ file_types:
 # token_expiry: 24h
 # upload_dir: ./uploads
 # max_file_size: 10485760  # 10MB
-server_port: 3006
+server_port: 3000
 
 # 域名配置（可选）
 # domain: localhost

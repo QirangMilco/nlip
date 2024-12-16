@@ -37,6 +37,9 @@ func isOperable(method string, path string, permission string) bool {
 		return isViewable(method, path)
 	}
 	if permission == "edit" {
+		if isViewable(method, path) {
+			return true
+		}
 		if method == "DELETE" {
 			return strings.Contains(path, "/clips")
 		}

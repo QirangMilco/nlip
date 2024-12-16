@@ -9,7 +9,7 @@ set "DEST_DIR=..\backend\static"
 (
     echo 开始构建前端项目...
     :: 执行npm构建
-    call npm run build
+    call pnpm run build
 
     if errorlevel 1 (
         echo 构建失败！
