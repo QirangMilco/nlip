@@ -2,8 +2,8 @@ name: build-and-push-image
 
 on:
   push:
-    branches:
-      # Run on pushing branches like 'v1.0.0', 'v0.22.2rc'
+    tags:
+      # Run on pushing tags like 'v1.0.0', 'v0.22.2rc'
       - "v*"
 
 jobs:
