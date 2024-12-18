@@ -43,7 +43,7 @@ jobs:
           cache: true
 
       - name: Build Binary
-        working-directory: nlip/src/backend
+        working-directory: src/backend
         run: |
           export CGO_ENABLED=1
           export CC="clang --target=x86_64-unknown-freebsd14.1 --sysroot=/opt/freebsd"
