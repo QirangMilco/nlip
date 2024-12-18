@@ -33,7 +33,7 @@ jobs:
         run: pnpm install
       - name: Build Frontend
         working-directory: src/frontend
-        run: pnpm release
+        run: pnpm build
 
       - name: Setup Go
         uses: actions/setup-go@v5
