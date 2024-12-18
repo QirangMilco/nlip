@@ -6,6 +6,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Build FreeBSD
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +69,8 @@ jobs:
         with:
           name: nlip-freebsd-v${{ env.VERSION }}
           path: src/backend/nlip-freebsd-v${{ env.VERSION }}.tar.gz
+          if-no-files-found: error
+          compression-level: 0 # 禁用额外压缩
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
