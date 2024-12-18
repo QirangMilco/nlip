@@ -60,7 +60,7 @@ jobs:
           cp -r ../frontend/dist release/static/
           cp config.yaml release/
           cd release
-          tar czvf ../nlip-freebsd-v${env.VERSION}.tar.gz ./*
+          tar czvf ../nlip-freebsd-v$VERSION.tar.gz ./*
 
       - name: Upload artifact
         uses: actions/upload-artifact@main
