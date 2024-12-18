@@ -41,6 +41,7 @@ jobs:
           go-version: 1.23
           check-latest: true
           cache: true
+          cache-dependency-path: "src/bakcend/go.sum"
 
       - name: Build Binary
         working-directory: src/backend
@@ -56,7 +57,7 @@ jobs:
         run: |
           mkdir -p release/static
           cp nlip-freebsd release/
-          cp -r src/frontend/dist release/static/
+          cp -r ../frontend/dist release/static/
           cp config.yaml release/
           cd release
           tar czvf ../nlip-freebsd-v${env.VERSION}.tar.gz ./*
