@@ -1,0 +1,45 @@
+name: Build and Release FreeBSD
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build FreeBSD
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup FreeBSD base
+        run: |
+          wget -q https://download.freebsd.org/releases/amd64/14.1-RELEASE/base.txz
+          sudo mkdir /opt/freebsd && sudo tar -xf ./base.txz -C /opt/freebsd
+
+      - name: Set fixed version
+        run: echo "VERSION=1.0.0" >> $GITHUB_ENV
+
+      - name: Build Binary
+        run: |
+          export CGO_ENABLED=1
+          export CC="clang --target=x86_64-unknown-freebsd14.1 --sysroot=/opt/freebsd"
+          export GOOS=freebsd
+          go build -o nlip-freebsd
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@main
+        with:
+          name: nlip-freebsd
+          path: nlip-freebsd
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          files: nlip-freebsd
+
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 1
+          keep_minimum_runs: 8

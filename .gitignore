@@ -63,11 +63,16 @@ android/.gradle/
 
 # Go specific
 *.test
-*.out 
+*.out
 
 # files
 uploads/
 
+
+# refs
+.github/workflows/refs/
+
+# local markdowns
 ask.md
 light.md
 plan.md
