@@ -42,6 +42,7 @@ jobs:
           distribution: goreleaser
           # 'latest', 'nightly', or a semver
           version: latest
+          workdir: src/backend
           args: release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
