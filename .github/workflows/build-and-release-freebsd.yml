@@ -1,4 +1,4 @@
-name: Build and Release FreeBSD
+name: build-and-release-freebsd
 
 on: workflow_dispatch
 
