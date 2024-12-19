@@ -396,7 +396,7 @@ func cleanExpiredInvites() error {
 		result, err := db.Exec(config.DB, `
 			DELETE FROM nlip_invites 
 			WHERE used_at IS NOT NULL 
-			   OR expires_at < datetime('now')
+			   OR expires_at < strftime('%s', 'now')
 		`)
 		if err != nil {
 			return fmt.Errorf("清理邀请码失败: %w", err)

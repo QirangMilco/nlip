@@ -441,7 +441,7 @@ func HandleInviteCollaborator(c *fiber.Ctx) error {
 				created_at,
 				expires_at,
 				permission
-			) VALUES (?, ?, ?, datetime('now'), datetime('now', '+24 hours'), ?)
+			) VALUES (?, ?, ?, strftime('%s', 'now'), datetime('now', '+24 hours'), ?)
 		`, tokenHash, s.ID, userID, req.Permission)
 		return err
 	})
@@ -497,7 +497,7 @@ func HandleVerifyInviteToken(c *fiber.Ctx) error {
 		JOIN nlip_users u ON i.created_by = u.id
 		WHERE i.token_hash = ? 
 			AND i.used_at IS NULL 
-			AND i.expires_at > datetime('now')
+			AND i.expires_at > strftime('%s', 'now')
 	`, req.Token).Scan(&spaceID, &createdBy, &permission, &inviterName)
 
 	if err == sql.ErrNoRows {
@@ -551,7 +551,7 @@ func HandleAcceptInvite(c *fiber.Ctx) error {
 		FROM nlip_invites 
 		WHERE token_hash = ? 
 			AND used_at IS NULL 
-			AND expires_at > datetime('now')
+			AND expires_at > strftime('%s', 'now')
 	`, req.Token).Scan(&spaceID, &permission)
 
 	if err == sql.ErrNoRows {
@@ -584,7 +584,7 @@ func HandleAcceptInvite(c *fiber.Ctx) error {
 		// 标记令牌为已使用
 		_, err = db.ExecTx(tx, `
 			UPDATE nlip_invites 
-			SET used_at = datetime('now'),
+			SET used_at = strftime('%s', 'now'),
 				used_by = ?
 			WHERE token_hash = ?
 		`, userID, req.Token)
@@ -607,7 +607,7 @@ func HandleAcceptInvite(c *fiber.Ctx) error {
 		_, err = db.ExecTx(tx, `
 			UPDATE nlip_spaces 
 			SET collaborators = ?, 
-				updated_at = datetime('now')
+				updated_at = strftime('%s', 'now')
 			WHERE id = ?
 		`, string(newCollaboratorsJSON), spaceID)
 

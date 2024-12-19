@@ -15,8 +15,9 @@ WORKDIR /backend-build
 RUN apk add build-base
 
 COPY src/backend .
+COPY --from=frontend /frontend-build/dist /backend-build/static/dist
 
-RUN CGO_ENABLED=1 go build -o nlip ./main.go
+RUN CGO_ENABLED=0 go build -o nlip ./main.go
 
 # 创建工作区并包含上述生成的文件
 FROM alpine:latest AS monolithic
@@ -26,7 +27,6 @@ RUN apk add --no-cache tzdata
 ENV TZ="Asia/Shanghai"
 
 COPY --from=backend /backend-build/nlip /nlip/
-COPY --from=frontend /frontend-build/dist /nlip/static/dist
 
 EXPOSE 3000
 

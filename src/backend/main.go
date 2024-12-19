@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"embed"
+	"io/fs"
 	"log"
 	"nlip/config"
 	"nlip/middleware"
@@ -13,13 +15,18 @@ import (
 	"nlip/routes"
 	"nlip/tasks/cleaner"
 	appLogger "nlip/utils/logger"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-	"path/filepath"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
+
+//go:embed static/dist/*
+var embedDistFiles embed.FS
 
 func main() {
 	// 加载配置
@@ -51,25 +58,34 @@ func main() {
 	app.Use(compress.New())
 	app.Use(limiter.New())
 
-	// 添加静态文件服务
-	// 1. 直接服务dist目录
-	distPath := "./static/dist"
-
-	app.Static("/", distPath)
-
-	// 2. 对于SPA应用,所有未匹配的路由重定向到index.html
-	app.Get("/*", func(c *fiber.Ctx) error {
-		// 如果请求的是API路由,跳过
-		if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
-			return c.Next()
-		}
-		// 其他路由返回index.html
-		return c.SendFile(filepath.Join(distPath, "index.html"))
-	})
-
-	// API路由组
+	// API路由组 - 移到静态文件处理之前
 	api := app.Group("/api")
 	routes.SetupRoutes(api)
+
+	// 静态文件服务
+	distFS, err := fs.Sub(embedDistFiles, "static/dist")
+	if err != nil {
+		log.Fatalf("无法加载嵌入的静态文件: %v", err)
+	}
+
+	// 使用 filesystem 中间件服务静态文件
+	app.Use("/", filesystem.New(filesystem.Config{
+		Root:       http.FS(distFS),
+		PathPrefix: "static/dist",
+		Browse:     false,
+	}))
+
+	// SPA 路由处理放在最后
+	app.Use("/*", func(c *fiber.Ctx) error {
+		// 读取嵌入的 index.html
+		indexContent, err := embedDistFiles.ReadFile("static/dist/index.html")
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("无法读取 index.html")
+		}
+		
+		c.Set("Content-Type", "text/html")
+		return c.Send(indexContent)
+	})
 
 	// 启动清理任务
 	cleaner.StartCleanupTask()

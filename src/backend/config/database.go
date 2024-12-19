@@ -2,7 +2,7 @@ package config
 
 import (
     "database/sql"
-    _ "github.com/mattn/go-sqlite3"
+    _ "modernc.org/sqlite"
     "time"
     "nlip/utils/logger"
     "fmt"
@@ -25,7 +25,7 @@ func InitDatabase() error {
 
     dbPath := filepath.Join(dataDir, "nlip.db")
     var err error
-    DB, err = sql.Open("sqlite3", dbPath)
+    DB, err = sql.Open("sqlite", dbPath)
     if err != nil {
         logger.Error("打开数据库失败: %v", err)
         return err

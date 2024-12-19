@@ -72,90 +72,6 @@ typescript:
   function_naming: camelCase
   variable_naming: camelCase
 
-# Flutter 代码规则
-flutter:
-  indent_size: 2
-  class_naming: PascalCase
-  function_naming: camelCase
-  constant_naming: UPPER_SNAKE_CASE
-  variable_naming: camelCase
-  package_naming: lowercase
-  widget_naming: PascalCase
-  imports_order:
-    - dart:io
-    - dart:async
-    - package:flutter
-    - package:provider
-    - relative
-  max_line_length: 80
-
-# 目录结构规则
-directory_structure:
-  src:
-    backend:
-      - handlers
-        - auth
-        - spaces
-        - clips
-      - middleware
-        - auth
-        - validator
-        - logger
-      - models
-        - user
-        - space
-        - clip
-      - routes
-        - api.go
-        - auth.go
-        - spaces.go
-        - clips.go
-      - utils
-        - jwt
-        - validator
-        - storage
-      - config
-        - app.go
-        - database.go
-    frontend:
-      web:
-        - components
-          - common
-          - layout
-          - features
-        - views
-          - auth
-          - dashboard
-          - spaces
-          - clips
-        - store
-          - slices
-          - hooks
-        - api
-          - services
-          - config
-        - utils
-          - helpers
-          - constants
-        - hooks
-          - common
-          - features
-        - types
-        - assets
-          - images
-          - styles
-      extension:
-        - popup
-        - background
-        - content
-      flutter:
-        lib:
-          - presentation
-          - domain
-          - data
-          - core
-          - di
-
 # 测试规则
 test:
   go:
@@ -298,27 +214,4 @@ naming_rules:
       slice: "{name}Slice"
       selector: "select{Name}"
       action: "{action}{Name}"
-
-  # Flutter命名规则
-  flutter:
-    # 页面命名规则
-    page:
-      pattern: "{Resource}Page"
-      examples:
-        - SpaceListPage
-        - ClipDetailPage
-    
-    # Widget命名规则
-    widget:
-      pattern: "Nlip{Resource}{Type}"
-      examples:
-        - NlipSpaceCard
-        - NlipClipList
-    
-    # 模型命名规则
-    model:
-      pattern: "{Resource}Model"
-      examples:
-        - UserModel
-        - SpaceModel
   

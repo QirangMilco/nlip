@@ -263,7 +263,7 @@ func loadProdConfig() {
 			metadata := &mapstructure.Metadata{}
 			decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 				TagName:          "json",
-				WeaklyTypedInput:  true,
+				WeaklyTypedInput: true,
 				Metadata:         metadata,
 				Result:           &AppConfig,
 			})
