@@ -31,7 +31,7 @@ jobs:
           cache-dependency-path: "src/frontend/pnpm-lock.yaml"
       - run: pnpm install
         working-directory: src/frontend
-      - run: pnpm release
+      - run: pnpm build
         working-directory: src/frontend
       - run: cp -r ../frontend/dist static/
         working-directory: src/backend
