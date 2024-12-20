@@ -71,7 +71,6 @@ func main() {
 	// 使用 filesystem 中间件服务静态文件
 	app.Use("/", filesystem.New(filesystem.Config{
 		Root:       http.FS(distFS),
-		PathPrefix: "static/dist",
 		Browse:     false,
 	}))
 

@@ -37,10 +37,13 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            return id.toString().split('node_modules/')[1].split('/')[0].toString();
+            const moduleId = id.toString().split('node_modules/')[1].split('/')[0].toString();
+            const cleanModuleId = moduleId.replace('.pnpm', 'pnpm');
+            return `vendor-${cleanModuleId}`;
           }
         },
-        // inlineDynamicImports: true
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     },
     target: 'esnext',
@@ -59,4 +62,4 @@ export default defineConfig({
     ],
     force: true
   }
-}); 
+});
