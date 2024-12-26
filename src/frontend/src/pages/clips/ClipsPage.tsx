@@ -3,32 +3,22 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useClips } from '@/hooks/useClip';
 import { useSpace } from '@/hooks/useSpace';
 import { 
-  Card, Empty, Spin, Button, Space as AntSpace, 
-  Input, message, Typography, Tooltip, Modal
+  Empty, Spin,
+  message, Modal
 } from 'antd';
-import { 
-  LogoutOutlined, SettingOutlined, CopyOutlined,
-  EditOutlined, DeleteOutlined, UploadOutlined,
-  SaveOutlined, DownloadOutlined,
-  LoadingOutlined, ReloadOutlined, PlusOutlined
-} from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearAuth } from '@/store/slices/authSlice';
 import { RootState } from '@/store';
 import dayjs from 'dayjs';
 import SpaceSettingsModal from '@/pages/spaces/components/SpaceSettingsModal';
 import { UploadClipRequest, Clip, ImagePreviewState, SpaceStats, Collaborator } from '@/store/types';
-import styles from './ClipsPage.module.scss';
 import { updateClip } from '@/api/clips';
 import CreateSpaceModal from '@/pages/spaces/components/CreateSpaceModal';
-import SpacePermissionAlert from '@/pages/spaces/components/SpacePermissionAlert';
 import { useSpaceNavigation } from '@/hooks/useSpaceNavigation';
 import { getSpaceStats, getSpaceCollaborators } from '@/api/spaces';
-import SpaceList from '@/pages/spaces/components/SpaceList';
-import SpaceStatsCard from '@/pages/spaces/components/SpaceStatsCard';
-
-const { TextArea } = Input;
-const { Text } = Typography;
+import Sidebar from '../sidebar/Sidebar';
+import Clipboard from './components/Clipboard';
+import SpaceMenu from '@/pages/spaces/components/SpaceMenu';
 
 const ClipsPage: React.FC = () => {
   // 1. 路由相关 hooks
@@ -366,204 +356,6 @@ const ClipsPage: React.FC = () => {
     return currentSpace.ownerId === currentUser.id || currentSpace.permission === 'edit';
   }
 
-  // 修改剪贴板操作按钮的渲染逻辑
-  const renderClipActions = (clip: Clip) => {
-    const actions = [];
-
-    // 下载按钮（如果是文件）
-    if (clip.filePath) {
-      actions.push(
-        <Tooltip key="download" title="下载">
-          <Button
-            type="text"
-            icon={<DownloadOutlined />}
-            onClick={() => handleDownload(clip)}
-          />
-        </Tooltip>
-      );
-    }
-    else {
-      actions.push(
-        <Tooltip key="copy" title="复制">
-          <Button
-            type="text"
-            icon={<CopyOutlined />}
-            onClick={() => handleCopy(clip)}
-            disabled={!clip.content}
-          />
-        </Tooltip>
-      );
-    }
-
-    // 编辑和删除按钮需要编辑权限
-    if (canEditClip(clip)) {
-      if (!clip.filePath) {
-        actions.push(
-          <Tooltip key="edit" title="编辑">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-              onClick={() => handleEdit(clip)}
-            />
-          </Tooltip>
-        );
-      }
-      actions.push(
-        <Tooltip key="delete" title="删除">
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(clip.clipId)}
-          />
-        </Tooltip>
-      );
-    }
-
-    return actions;
-  };
-
-  // 修改标题栏渲染
-  const renderHeader = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <span>剪贴板 - {currentSpace?.name}</span>
-        {renderSpaceSelector()}
-      </div>
-      <AntSpace>
-        {currentUser ? (
-          <span className={styles.username}>{currentUser.username}</span>
-        ) : (
-          <span className={styles.guest}>游客</span>
-        )}
-        {canManageSpace && (
-          <Button 
-            icon={<SettingOutlined />}
-            onClick={() => setShowSettings(true)}
-          >
-            空间设置
-          </Button>
-        )}
-        {token ? (
-          <Button 
-            icon={<LogoutOutlined />} 
-            onClick={handleLogout}
-            danger
-          >
-            退出登录
-          </Button>
-        ) : (
-          <Button 
-            type="primary"
-            onClick={() => navigate('/login')}
-          >
-            登录
-          </Button>
-        )}
-      </AntSpace>
-    </div>
-  );
-
-  // 修改渲染剪贴板内容的部分
-  const renderClipContent = (clip: Clip) => {
-    if (clip.filePath) {
-      const fileName = decodeURIComponent(extractFileName(clip.filePath));
-      const previewState = imagePreviewStates[clip.clipId] || {
-        loading: false,
-        error: false,
-        url: null
-      };
-
-      return (
-        <div className={styles.fileContent}>
-          <span className={styles.fileName}>{fileName}</span>
-          {clip.contentType.startsWith('image/') && (
-            <div 
-              className={styles.imageContainer}
-              onClick={() => setVisibleImage(previewState.url)}
-            >
-              {previewState.loading && (
-                <div className={styles.imageLoading}>
-                  <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-                </div>
-              )}
-              
-              {previewState.error && (
-                <div className={styles.imageError}>
-                  <span>图片加载失败</span>
-                  <Button 
-                    type="link" 
-                    icon={<ReloadOutlined />}
-                    className={styles.retryButton}
-                    onClick={() => handleDownload(clip, 'preview')}
-                  >
-                    重试
-                  </Button>
-                </div>
-              )}
-              
-              {!previewState.loading && !previewState.error && previewState.url && (
-                <img 
-                  src={previewState.url}
-                  alt={fileName}
-                  className={`${styles.imagePreview} ${styles.loaded}`}
-                  onError={() => {
-                    cleanupPreviewUrl(clip.clipId);
-                    setImagePreviewStates(prev => ({
-                      ...prev,
-                      [clip.clipId]: {
-                        loading: false,
-                        error: true,
-                        url: null,
-                        scale: 1,
-                        position: { x: 0, y: 0 }
-                      }
-                    }));
-                  }}
-                />
-              )}
-            </div>
-          )}
-        </div>
-      );
-    }
-    
-    // 判断是否为长文本（超过5行或300个字符）
-    const isLongText = (clip.content?.length ?? 0) > 300 || 
-                      (clip.content?.split('\n').length ?? 0) > 5;
-    const isExpanded = expandedClips.has(clip.clipId);
-
-    return (
-      <>
-        <pre 
-          className={`${styles.content} ${!isExpanded && isLongText ? styles.collapsed : ''}`}
-        >
-          {clip.content}
-        </pre>
-        {isLongText && (
-          <div 
-            className={styles.expandButton}
-            onClick={() => toggleExpand(clip.clipId)}
-          >
-            {isExpanded ? '收起' : '展开全文'}
-          </div>
-        )}
-      </>
-    );
-  };
-
-  // 清理函数
-  const cleanupPreviewUrl = useCallback((clipId: string) => {
-    const state = imagePreviewStates[clipId];
-    if (state?.url) {
-      window.URL.revokeObjectURL(state.url);
-    }
-    setImagePreviewStates(prev => {
-      const newState = { ...prev };
-      delete newState[clipId];
-      return newState;
-    });
-  }, [imagePreviewStates]);
-
   // 在组件卸载时清理所有预览URL
   useEffect(() => {
     return () => {
@@ -660,35 +452,12 @@ const ClipsPage: React.FC = () => {
 
   const [showCreateSpace, setShowCreateSpace] = useState(false);
 
-  const renderSpaceSelector = () => (
-    <div className={styles.spaceSelector}>
-      {currentUser && (
-        <SpaceList
-          spaces={spaces}
-          currentUser={currentUser}
-          value={spaceId}
-          loading={loadingSpaces}
-          onChange={handleSpaceChange}
-        />
-      )}
-      {currentUser && (
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setShowCreateSpace(true)}
-        >
-          创建空间
-        </Button>
-      )}
-    </div>
-  );
-
   // 7. 条件渲染
   if (loadingSpaces || isLoadingClips) {
     return (
-      <div className={styles.loading}>
+      <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-min-h-screen">
         <Spin />
-        <div className={styles.loadingText}>
+        <div className="tw-mt-4 tw-text-gray-600">
           {loadingSpaces ? '加载空间中...' : '加载剪贴板中...'}
         </div>
       </div>
@@ -705,217 +474,158 @@ const ClipsPage: React.FC = () => {
 
   // 8. 主要渲染
   return (
-    <div className={styles.container}>
-      <div className={styles.mainContent}>
-        {currentSpace && (
-          <SpacePermissionAlert
-            space={currentSpace} 
-            isAdmin={currentUser?.isAdmin}
-            isGuest={!currentUser}
-          />
-        )}
-        <Card 
-          title={renderHeader()} 
-          className={styles.pageCard}
-        >
-          {/* 新增剪贴板输入框 */}
-          <div className={styles.newClip}>
-            <TextArea
-              value={newContent}
-              onChange={e => setNewContent(e.target.value)}
-              placeholder="输入新的剪贴板内容..."
-              autoSize={{ minRows: 3, maxRows: 6 }}
-            />
-            <div className={styles.inputActions}>
-              <input
-                type="file"
-                id="fileUpload"
-                style={{ display: 'none' }}
-                onChange={handleFileUpload}
-                accept="image/*,text/*,application/pdf"
-              />
-              <Button 
-                icon={<UploadOutlined />}
-                onClick={() => document.getElementById('fileUpload')?.click()}
-              >
-                上传文件
-              </Button>
-              <Button 
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleSaveNew}
-              >
-                保存
-              </Button>
-            </div>
-          </div>
+    <div className="tw-flex tw-flex-row tw-w-full tw-transition-all tw-mx-auto 
+      tw-min-h-screen tw-justify-center tw-items-start tw-pl-56 tw-bg-gray-50">
+      {/* 左侧导航栏 - 改为最小宽度 */}
+      <Sidebar 
+        navigate={navigate}
+        username={currentUser?.username}
+        token={token || ''}
+        handleLogout={handleLogout}
+      />
 
-          {/* 剪贴板列表 */}
-          {isLoadingClips ? (
-            <Spin />
-          ) : sortedClips.length === 0 ? (
-            <Empty description="暂无剪贴板内容" />
-          ) : (
-            <div className={styles.clipList}>
-              {sortedClips.map(clip => (
-                <Card 
-                  key={clip.clipId}
-                  className={styles.clipItem}
-                  size="small"
-                >
-                  {/* 头部信息 */}
-                  <div className={styles.clipHeader}>
-                    <div className={styles.clipInfo}>
-                      <Text type="secondary">
-                        创建于 {dayjs(clip.createdAt).format('YYYY-MM-DD HH:mm')}
-                        {clip.updatedAt !== clip.createdAt && 
-                          `，更新于 ${dayjs(clip.updatedAt).format('YYYY-MM-DD HH:mm')}`}
-                      </Text>
-                      <Text type="secondary">
-                        创建者: {clip.creator?.username || '游客'}
-                      </Text>
-                    </div>
-                    {renderClipActions(clip)}
-                  </div>
-
-                  {/* 内容部分 */}
-                  <div className={styles.clipContent}>
-                    {editingClipId === clip.clipId ? (
-                      <div className={styles.editContent}>
-                        <TextArea
-                          value={editContent}
-                          onChange={e => setEditContent(e.target.value)}
-                          autoSize={{ minRows: 3, maxRows: 6 }}
-                        />
-                        <div className={styles.editActions}>
-                          <Button 
-                            onClick={() => setEditingClipId(null)}
-                          >
-                            取消
-                          </Button>
-                          <Button 
-                            type="primary"
-                            icon={<SaveOutlined />}
-                            onClick={() => handleSaveEdit(clip.clipId)}
-                          >
-                            保存
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      renderClipContent(clip)
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {canManageSpace && showSettings && (
-            <SpaceSettingsModal
-              visible={showSettings}
-              space={currentSpace}
-              onClose={() => setShowSettings(false)}
-              onSpaceUpdated={async (action?: 'delete') => {
-                try {
-                  if (action === 'delete') {
-                    setShowSettings(false);
-                    await fetchSpaces();
-                    
-                    if (spaces.length > 0) {
-                      const privateSpace = spaces.find(s => s.type === 'private');
-                      const defaultSpace = privateSpace || spaces[0];
-                      navigate(`/clips/${defaultSpace.id}`, { replace: true });
-                    } else {
-                      navigate('/clips', { replace: true });
-                    }
-                  } else {
-                    // 更新空间设置后，重新获取所有相关数据
-                    await Promise.all([
-                      fetchSpaces(),        // 重新获取空间列表
-                      fetchSpaceStats(),    // 重新获取空间统计信息
-                      fetchClips()          // 重新获取剪贴板内容
-                    ]);
-                    setShowSettings(false); // 关闭设置弹窗
-                  }
-                } catch (error) {
-                  console.error('更新空间数据失败:', error);
-                  message.error('更新空间数据失败，请刷新页面重试');
-                }
-              }}
-            />
-          )}
-
-          {/* 修改图片放大浮窗 */}
-          <Modal
-            open={!!visibleImage}
-            footer={null}
-            onCancel={() => {
-              setVisibleImage(null);
-              setScale(1);
-              setPosition({ x: 0, y: 0 });
-            }}
-            width="90vw"
-            style={{ 
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              padding: 0,
-            }}
-            centered
-            className={styles.imageModal}
-            closable={true}
-            maskClosable={true}
+      {/* 主要区域 */}
+      <main className="tw-w-full tw-h-auto tw-flex-grow tw-shrink tw-flex 
+        tw-flex-col tw-justify-start tw-items-center">
+          <div className="tw-container tw-w-full tw-max-w-5xl tw-min-h-full 
+            tw-flex tw-flex-col tw-justify-start tw-items-center tw-pt-3 tw-pb-8"
           >
-            <div 
-              className={styles.imageModalContent}
-              onWheel={handleWheel}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-            >
-              <img 
-                ref={imageRef}
-                src={visibleImage || ''} 
-                alt="Preview" 
-                style={{ 
-                  transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-                  transformOrigin: '0 0',
-                  pointerEvents: 'none', // 防止图片干扰拖动事件
+            <div className="tw-w-full tw-flex tw-flex-row tw-justify-start 
+              tw-items-start tw-px-4 tw-gap-4">
+              <Clipboard
+                currentSpace={currentSpace}
+                currentUser={currentUser}
+                newContent={newContent}
+                onNewContentChange={(content) => setNewContent(content)}
+                onSaveNew={handleSaveNew}
+                onFileUpload={handleFileUpload}
+                sortedClips={sortedClips}
+                clipItemProps={{
+                  editingClipId,
+                  editContent,
+                  expandedClips,
+                  imagePreviewStates,
+                  canEditClip,
+                  onEdit: handleEdit,
+                  onSaveEdit: handleSaveEdit,
+                  onCancelEdit: () => setEditingClipId(null),
+                  onDelete: handleDelete,
+                  onDownload: handleDownload,
+                  onCopy: handleCopy,
+                  onToggleExpand: toggleExpand,
+                  onEditContentChange: (content) => setEditContent(content),
+                  onImageClick: (url) => setVisibleImage(url),
+                  extractFileName
+                }}
+              />
+
+              <SpaceMenu 
+                spaces={spaces}
+                currentSpace={currentSpace}
+                currentUser={currentUser}
+                token={token || ''}
+                spaceId={spaceId}
+                loadingSpaces={loadingSpaces}
+                loadingStats={loadingStats}
+                loadingCollaborators={loadingCollaborators}
+                spaceStats={spaceStats}
+                collaborators={collaborators}
+                canManageSpace={canManageSpace}
+                onSpaceChange={handleSpaceChange}
+                onCreateSpace={() => setShowCreateSpace(true)}
+                onOpenSettings={() => setShowSettings(true)}
+                onSpaceUpdate={async () => {
+                  await Promise.all([
+                    fetchSpaces(),
+                    fetchSpaceStats(),
+                    fetchCollaborators()
+                  ]);
                 }}
               />
             </div>
-          </Modal>
-        </Card>
+          </div>
+      </main>
 
-        {/* 添加创建空间的模态框 */}
-        <CreateSpaceModal
-          visible={showCreateSpace}
-          onClose={() => setShowCreateSpace(false)}
-          onSuccess={fetchSpaces}
-        />
-      </div>
-      <div className={styles.sidebar}>
-        {currentSpace && (
-          <SpaceStatsCard 
-            space={currentSpace}
-            clipCount={spaceStats?.clipCount || 0}
-            ownerUsername={spaceStats?.ownerUsername || ''}
-            collaborators={collaborators}
-            loading={loadingStats || loadingCollaborators}
-            onSpaceUpdate={async () => {
-              await Promise.all([
-                fetchSpaces(),
-                fetchSpaceStats(),
-                fetchCollaborators()
-              ]);
+      {/* 图片预览模态框 */}
+      <Modal
+        open={!!visibleImage}
+        footer={null}
+        onCancel={() => {
+          setVisibleImage(null);
+          setScale(1);
+          setPosition({ x: 0, y: 0 });
+        }}
+        width="90vw"
+        style={{ maxWidth: '90vw', maxHeight: '90vh', padding: 0 }}
+        centered
+        closable={true}
+        maskClosable={true}
+      >
+        <div 
+          className="tw-relative tw-w-full tw-h-[80vh] tw-overflow-hidden tw-bg-gray-900"
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+        >
+          <img 
+            ref={imageRef}
+            src={visibleImage || ''} 
+            alt="Preview" 
+            className="tw-absolute tw-transition-transform"
+            style={{ 
+              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              transformOrigin: '0 0',
+              pointerEvents: 'none'
             }}
           />
-        )}
-      </div>
+        </div>
+      </Modal>
+
+      <CreateSpaceModal
+        visible={showCreateSpace}
+        onClose={() => setShowCreateSpace(false)}
+        onSuccess={fetchSpaces}
+      />
+
+      {/* 其他模态框保持不变 */}
+      {canManageSpace && showSettings && (
+        <SpaceSettingsModal
+          visible={showSettings}
+          space={currentSpace}
+          onClose={() => setShowSettings(false)}
+          onSpaceUpdated={async (action?: 'delete') => {
+            try {
+              if (action === 'delete') {
+                setShowSettings(false);
+                await fetchSpaces();
+                
+                if (spaces.length > 0) {
+                  const privateSpace = spaces.find(s => s.type === 'private');
+                  const defaultSpace = privateSpace || spaces[0];
+                  navigate(`/clips/${defaultSpace.id}`, { replace: true });
+                } else {
+                  navigate('/clips', { replace: true });
+                }
+              } else {
+                await Promise.all([
+                  fetchSpaces(),
+                  fetchSpaceStats(),
+                  fetchClips()
+                ]);
+                setShowSettings(false);
+              }
+            } catch (error) {
+              console.error('更新空间数据失败:', error);
+              message.error('更新空间数据失败，请刷新页面重试');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
 
-export default ClipsPage; 
+export default ClipsPage;

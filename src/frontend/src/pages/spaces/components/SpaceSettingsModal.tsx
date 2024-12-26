@@ -210,24 +210,28 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
     }));
 
     return (
-      <div style={{ marginTop: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h3>协作者管理</h3>
+      <div className="tw-mt-6">
+        <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
+          <h3 className="tw-text-lg tw-font-medium tw-flex-none">协作者管理</h3>
           {canManageSpace && (
             <Button 
               type="primary" 
               onClick={() => setInviteModalVisible(true)}
+              className="tw-ml-4"
             >
               邀请协作者
             </Button>
           )}
         </div>
-        <Table 
-          columns={columns}
-          dataSource={dataSource}
-          pagination={false}
-          size="small"
-        />
+        <div className="tw-overflow-x-auto">
+          <Table 
+            columns={columns}
+            dataSource={dataSource}
+            pagination={false}
+            size="small"
+            className="tw-min-w-full"
+          />
+        </div>
         
         {/* 邀请协作者的模态框 */}
         <Modal
@@ -238,21 +242,22 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
             setInviteModalVisible(false);
             inviteForm.resetFields();
           }}
+          className="tw-max-w-lg"
         >
-          <Form form={inviteForm} layout="vertical">
+          <Form form={inviteForm} layout="vertical" className="tw-w-full">
             <Form.Item
               label="用户ID"
               name="userId"
               rules={[{ required: true, message: '请输入用户ID' }]}
             >
-              <Input />
+              <Input className="tw-w-full" />
             </Form.Item>
             <Form.Item
               label="权限"
               name="permission"
               rules={[{ required: true, message: '请选择权限' }]}
             >
-              <Select>
+              <Select className="tw-w-full">
                 <Select.Option value="edit">可编辑</Select.Option>
                 <Select.Option value="view">可查看</Select.Option>
               </Select>
@@ -263,9 +268,9 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
     );
   };
 
-  // 在 Modal 底部添加删除按钮
+  // Modal 底部按钮组
   const modalFooter = [
-    <Button key="cancel" onClick={onClose}>
+    <Button key="cancel" onClick={onClose} className="tw-mr-2">
       取消
     </Button>,
     <Button
@@ -273,6 +278,7 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
       type="primary"
       loading={loading}
       onClick={handleSubmit}
+      className="tw-mr-2"
     >
       保存
     </Button>,
@@ -294,19 +300,20 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
       open={visible}
       onCancel={onClose}
       footer={modalFooter}
-      width={600}
+      className="tw-w-full tw-max-w-2xl"
     >
       <Form
         form={form}
         layout="vertical"
         disabled={!canManageSpace}
+        className="tw-w-full tw-space-y-4"
       >
         <Form.Item
           label="空间名称"
           name="name"
           rules={[{ required: true, message: '请输入空间名称' }]}
         >
-          <Input />
+          <Input className="tw-w-full" />
         </Form.Item>
 
         <Form.Item
@@ -319,7 +326,7 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
           <InputNumber
             min={1}
             max={maxItemsLimit}
-            style={{ width: '100%' }}
+            className="tw-w-full"
           />
         </Form.Item>
 
@@ -333,7 +340,7 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
           <InputNumber
             min={1}
             max={maxRetentionDaysLimit}
-            style={{ width: '100%' }}
+            className="tw-w-full"
           />
         </Form.Item>
 
@@ -343,7 +350,7 @@ const SpaceSettingsModal: React.FC<SpaceSettingsModalProps> = ({
             name="type"
             rules={[{ required: true, message: '请选择空间类型' }]}
           >
-            <Select>
+            <Select className="tw-w-full">
               <Select.Option value="public">公共空间</Select.Option>
               <Select.Option value="private">私有空间</Select.Option>
             </Select>

@@ -68,13 +68,17 @@ const SpaceList: React.FC<SpaceListProps> = ({
       style={{ width: '100%' }}
       loading={loading}
       placeholder="选择空间"
-      optionFilterProp="children"
+      optionFilterProp="label"
       showSearch
     >
       {categorizedSpaces.publicSpaces.length > 0 && (
         <Select.OptGroup label="公共空间">
           {categorizedSpaces.publicSpaces.map(space => (
-            <Select.Option key={space.id} value={space.id}>
+            <Select.Option 
+              key={space.id} 
+              value={space.id}
+              label={renderSpaceName(space)}
+            >
               <Tooltip title={`公共空间 - ${renderSpaceName(space)}`}>
                 {renderSpaceIcon(space)}
                 {renderSpaceName(space)}
@@ -87,7 +91,11 @@ const SpaceList: React.FC<SpaceListProps> = ({
       {categorizedSpaces.ownedSpaces.length > 0 && (
         <Select.OptGroup label="我的空间">
           {categorizedSpaces.ownedSpaces.map(space => (
-            <Select.Option key={space.id} value={space.id}>
+            <Select.Option 
+              key={space.id} 
+              value={space.id}
+              label={space.name}
+            >
               <Tooltip title={`我的空间 - ${space.name}`}>
                 {renderSpaceIcon(space)}
                 {space.name}
@@ -100,7 +108,11 @@ const SpaceList: React.FC<SpaceListProps> = ({
       {categorizedSpaces.sharedSpaces.length > 0 && (
         <Select.OptGroup label="共享空间">
           {categorizedSpaces.sharedSpaces.map(space => (
-            <Select.Option key={space.id} value={space.id}>
+            <Select.Option 
+              key={space.id} 
+              value={space.id}
+              label={space.name}
+            >
               <Tooltip title={`共享空间 - ${space.name}`}>
                 {renderSpaceIcon(space)}
                 {space.name}

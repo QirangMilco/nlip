@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Table, Button, Select, Popconfirm, message, Input, Space, Tag } from 'antd';
+import { Table, Button, Select, Popconfirm, message, Input, Tag } from 'antd';
 import { DeleteOutlined, UserOutlined, SearchOutlined, UserDeleteOutlined } from '@ant-design/icons';
 import { Collaborator, SpaceWithPermission as SpaceType } from '@/store/types';
 import { updateCollaboratorPermission, removeCollaborator } from '@/api/spaces';
@@ -16,7 +16,7 @@ const CollaboratorManagement: React.FC<CollaboratorManagementProps> = ({
   collaborators = [], 
   onCollaboratorUpdate 
 }) => {
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -27,14 +27,14 @@ const CollaboratorManagement: React.FC<CollaboratorManagementProps> = ({
       return;
     }
     try {
-      setLoading(true);
+      // setLoading(true);
       await updateCollaboratorPermission(space.id, collaboratorId, newPermission);
       message.success('权限更新成功');
       onCollaboratorUpdate();
     } catch (error: any) {
       message.error(error.message || '权限更新失败');
     } finally {
-      setLoading(false);
+      // setLoading(false);
     }
   };
 
@@ -44,20 +44,20 @@ const CollaboratorManagement: React.FC<CollaboratorManagementProps> = ({
       return;
     }
     try {
-      setLoading(true);
+      // setLoading(true);
       await removeCollaborator(space.id, collaboratorId);
       message.success('移除协作者成功');
       onCollaboratorUpdate();
     } catch (error: any) {
       message.error(error.message || '移除协作者失败');
     } finally {
-      setLoading(false);
+      // setLoading(false);
     }
   };
 
   const handleBatchRemove = async () => {
     try {
-      setLoading(true);
+      // setLoading(true);
       await Promise.all(selectedRows.map(id => removeCollaborator(space.id, id)));
       message.success('批量移除协作者成功');
       setSelectedRows([]);
@@ -65,9 +65,47 @@ const CollaboratorManagement: React.FC<CollaboratorManagementProps> = ({
     } catch (error: any) {
       message.error(error.message || '批量移除失败');
     } finally {
-      setLoading(false);
+      // setLoading(false);
     }
   };
+
+  const ExtraContent = () => (
+    <div className="tw-flex tw-flex-col sm:tw-flex-row tw-gap-2 sm:tw-gap-4 tw-items-start sm:tw-items-center">
+      <Input
+        placeholder="搜索协作者"
+        prefix={<SearchOutlined />}
+        onChange={e => setSearchText(e.target.value)}
+        className="tw-w-full sm:tw-w-48 md:tw-w-64"
+      />
+      {space.isOwner && (
+        <>
+          {selectedRows.length > 0 && (
+            <Popconfirm
+              title={`确定要移除选中的 ${selectedRows.length} 个协作者吗？`}
+              onConfirm={handleBatchRemove}
+            >
+              <Button
+                type="primary"
+                danger
+                icon={<UserDeleteOutlined />}
+                className="tw-w-full sm:tw-w-auto"
+              >
+                批量移除
+              </Button>
+            </Popconfirm>
+          )}
+          <Button
+            type="primary"
+            icon={<UserOutlined />}
+            onClick={() => setInviteModalVisible(true)}
+            className="tw-w-full sm:tw-w-auto"
+          >
+            邀请协作者
+          </Button>
+        </>
+      )}
+    </div>
+  );
 
   const columns = [
     {
@@ -75,11 +113,15 @@ const CollaboratorManagement: React.FC<CollaboratorManagementProps> = ({
       dataIndex: 'username',
       key: 'username',
       filterable: true,
+      ellipsis: true,
+      width: '40%',
       render: (username: string, record: Collaborator) => (
-        <Space>
-          <span>{username}</span>
-          {record.id === space.ownerId && <Tag color="gold">拥有者</Tag>}
-        </Space>
+        <div className="tw-flex tw-items-center tw-gap-2 tw-truncate">
+          <span className="tw-truncate">{username}</span>
+          {record.id === space.ownerId && (
+            <Tag color="gold" className="tw-shrink-0">拥有者</Tag>
+          )}
+        </div>
       ),
     },
     {
@@ -133,68 +175,28 @@ const CollaboratorManagement: React.FC<CollaboratorManagementProps> = ({
 
   return (
     <>
-      <Card 
-        title="协作者列表" 
-        loading={loading}
-        extra={
-          space.isOwner ? (
-            <Space>
-              <Input
-                placeholder="搜索协作者"
-                prefix={<SearchOutlined />}
-                onChange={e => setSearchText(e.target.value)}
-                style={{ width: 200 }}
-              />
-              {selectedRows.length > 0 && (
-                <Popconfirm
-                  title={`确定要移除选中的 ${selectedRows.length} 个协作者吗？`}
-                  onConfirm={handleBatchRemove}
-                >
-                  <Button
-                    type="primary"
-                    danger
-                    icon={<UserDeleteOutlined />}
-                  >
-                    批量移除
-                  </Button>
-                </Popconfirm>
-              )}
-              <Button
-                type="primary"
-                icon={<UserOutlined />}
-                onClick={() => setInviteModalVisible(true)}
-              >
-                邀请协作者
-              </Button>
-            </Space>
-          ) : (
-            <Input
-              placeholder="搜索协作者"
-              prefix={<SearchOutlined />}
-              onChange={e => setSearchText(e.target.value)}
-              style={{ width: 200 }}
-            />
-          )
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={filteredCollaborators}
-          rowKey="id"
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: total => `共 ${total} 条记录`
-          }}
-          rowSelection={space.isOwner ? {
-            selectedRowKeys: selectedRows,
-            onChange: (keys) => setSelectedRows(keys as string[]),
-            getCheckboxProps: (record) => ({
-              disabled: record.id === space.ownerId
-            })
-          } : undefined}
-        />
-      </Card>
+      <div className="tw-mb-4">
+        <ExtraContent />
+      </div>
+
+      <Table
+        columns={columns}
+        dataSource={filteredCollaborators}
+        rowKey="id"
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showTotal: total => `共 ${total} 条记录`,
+        }}
+        scroll={{ x: 'max-content' }}
+        rowSelection={space.isOwner ? {
+          selectedRowKeys: selectedRows,
+          onChange: (keys) => setSelectedRows(keys as string[]),
+          getCheckboxProps: (record) => ({
+            disabled: record.id === space.ownerId
+          })
+        } : undefined}
+      />
 
       {space.isOwner && (
         <InviteCollaboratorModal

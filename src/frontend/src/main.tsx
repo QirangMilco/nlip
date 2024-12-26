@@ -8,8 +8,9 @@ import App from './App';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // 导入样式
-import 'antd/dist/reset.css';
-import './styles/index.scss';
+import './index.css';
+// import 'antd/dist/reset.css';
+// import './styles/index.scss';
 
 const queryClient = new QueryClient();
 
