@@ -50,6 +50,12 @@ type Config struct {
 		Password string `json:"password"`
 		From     string `json:"from"`
 	} `json:"email"`
+
+	Token struct {
+		MaxItems        int `json:"max_items"`
+		DefaultExpiryDays int `json:"default_expiry_days"`
+		MaxExpiryDays   int `json:"max_expiry_days"`
+	} `json:"token"`
 }
 
 var (
@@ -122,6 +128,14 @@ func LoadConfig() {
 		}{
 			Enabled: true,
 		},
+		Token: struct {
+			MaxItems        int `json:"max_items"`
+			DefaultExpiryDays int `json:"default_expiry_days"`
+			MaxExpiryDays int `json:"max_expiry_days"`
+		}{
+			MaxItems:        10,
+			DefaultExpiryDays: 7,
+		},
 	}
 
 	// 根据环境加载配置
@@ -160,6 +174,11 @@ func validateAndAdjustConfig() {
 	}
 	if AppConfig.Space.DefaultRetentionDays > AppConfig.Space.MaxRetentionDaysLimit {
 		AppConfig.Space.DefaultRetentionDays = AppConfig.Space.MaxRetentionDaysLimit
+	}
+
+	// 若设置最大过期天数，则检查默认过期天数是否超过最大过期天数
+	if AppConfig.Token.MaxExpiryDays > 0 && AppConfig.Token.DefaultExpiryDays > AppConfig.Token.MaxExpiryDays {
+		AppConfig.Token.DefaultExpiryDays = AppConfig.Token.MaxExpiryDays
 	}
 }
 
@@ -313,6 +332,24 @@ func loadProdConfig() {
 	}
 	if emailEnabled := os.Getenv("EMAIL_ENABLED"); emailEnabled != "" {
 		AppConfig.Email.Enabled = emailEnabled == "true"
+	}
+
+	if tokenMaxItems := os.Getenv("TOKEN_MAX_ITEMS"); tokenMaxItems != "" {
+		if items, err := strconv.Atoi(tokenMaxItems); err == nil {
+			AppConfig.Token.MaxItems = items
+		}
+	}
+
+	if tokenDefaultExpiryDays := os.Getenv("TOKEN_DEFAULT_EXPIRY_DAYS"); tokenDefaultExpiryDays != "" {
+		if days, err := strconv.Atoi(tokenDefaultExpiryDays); err == nil {
+			AppConfig.Token.DefaultExpiryDays = days
+		}
+	}
+
+	if tokenMaxExpiryDays := os.Getenv("TOKEN_MAX_EXPIRY_DAYS"); tokenMaxExpiryDays != "" {
+		if days, err := strconv.Atoi(tokenMaxExpiryDays); err == nil {
+			AppConfig.Token.MaxExpiryDays = days
+		}
 	}
 
 	logger.Info("生产环境配置加载完成")

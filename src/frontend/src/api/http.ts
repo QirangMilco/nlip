@@ -59,7 +59,7 @@ http.interceptors.response.use(
 
       // 处理其他错误
       const errorMessage = data.message || '请求失败';
-      message.error(errorMessage);
+      // message.error(errorMessage);
       return Promise.reject(new Error(errorMessage));
     }
 

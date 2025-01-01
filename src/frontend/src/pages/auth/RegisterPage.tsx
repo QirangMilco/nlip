@@ -5,7 +5,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setAuth } from '@/store/slices/authSlice';
 import { register } from '@/api/auth';
-import styles from './AuthPage.module.scss';
 
 interface RegisterFormData {
   username: string;
@@ -44,8 +43,9 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <Card title="注册" className={styles.card}>
+    <div className="tw-flex tw-justify-center tw-items-center tw-min-h-screen tw-bg-gray-50">
+      <Card className="tw-w-full tw-max-w-md tw-shadow-lg">
+        <div className="tw-text-xl tw-font-semibold tw-mb-6 tw-text-center">注册</div>
         <Form
           form={form}
           onFinish={handleSubmit}
@@ -115,11 +115,10 @@ const RegisterPage: React.FC = () => {
               注册
             </Button>
           </Form.Item>
-
-          <div className={styles.footer}>
-            已有账号？<Link to="/login">立即登录</Link>
-          </div>
         </Form>
+        <div className="tw-mt-4 tw-text-center">
+          已有账号？<Link to="/login" className="tw-text-blue-500 hover:tw-text-blue-700">立即登录</Link>
+        </div>
       </Card>
     </div>
   );

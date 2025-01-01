@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Progress, Tooltip, Typography, Space, Modal } from 'antd';
-import { InfoCircleOutlined, TeamOutlined, FieldTimeOutlined, SettingOutlined, UserOutlined, LockOutlined, GlobalOutlined } from '@ant-design/icons';
+import { InfoCircleOutlined, TeamOutlined, FieldTimeOutlined, SettingOutlined, UserOutlined, LockOutlined, GlobalOutlined, ControlOutlined } from '@ant-design/icons';
 import { SpaceWithPermission as SpaceType, Collaborator } from '@/store/types';
 import CollaboratorManagement from './CollaboratorManagement';
 
@@ -36,7 +36,7 @@ const SpaceStats: React.FC<SpaceStatsProps> = ({
     <Card size="small" className="tw-card space-stats tw-p-2" loading={loading}>
       <Space direction="vertical" size={4} className="tw-w-full">
         <div className="tw-flex tw-justify-start tw-items-center">
-          <Text strong>空间情况</Text>
+          <Text strong className="tw-mr-3">空间情况</Text>
           <Tooltip title="显示当前空间的统计信息">
             <InfoCircleOutlined className="tw-text-primary-500" />
           </Tooltip>
@@ -91,7 +91,7 @@ const SpaceStats: React.FC<SpaceStatsProps> = ({
                 tw-bg-gray-50 hover:tw-bg-gray-100 tw-text-gray-600"
               onClick={() => setShowCollaborators(true)}
             >
-              <TeamOutlined className="tw-mr-1.5" />
+              <ControlOutlined className="tw-mr-1.5" />
               管理协作者
             </button>
 

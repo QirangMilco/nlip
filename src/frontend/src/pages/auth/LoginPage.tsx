@@ -2,7 +2,6 @@ import React from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { Link} from 'react-router-dom';
-import styles from './AuthPage.module.scss';
 import { useAuth } from '@/hooks/useAuth';
 
 
@@ -18,8 +17,9 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <Card title="登录" className={styles.card}>
+    <div className="tw-flex tw-justify-center tw-items-center tw-min-h-screen tw-bg-gray-50">
+      <Card className="tw-w-full tw-max-w-md tw-shadow-lg">
+        <div className="tw-text-xl tw-font-semibold tw-mb-6 tw-text-center">登录</div>
         <Form
           onFinish={onFinish}
           autoComplete="off"
@@ -66,8 +66,8 @@ const LoginPage: React.FC = () => {
             </Button>
           </Form.Item>
 
-          <div className={styles.footer}>
-            没有账号？<Link to="/register">立即注册</Link>
+          <div className="tw-mt-4 tw-text-center">
+            没有账号？<Link to="/register" className="tw-text-blue-500 hover:tw-text-blue-700">立即注册</Link>
           </div>
         </Form>
       </Card>

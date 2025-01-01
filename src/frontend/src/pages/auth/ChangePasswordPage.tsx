@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { changePassword } from '@/api/auth';
 import { clearAuth } from '@/store/slices/authSlice';
-import styles from './ChangePasswordPage.module.scss';
 
 interface ChangePasswordForm {
   oldPassword: string;
@@ -28,12 +27,11 @@ const ChangePasswordPage: React.FC = () => {
       });
       
       message.success('密码修改成功，请重新登录');
-      
-      // 清除登录状态
-      dispatch(clearAuth());
-      
+
       // 延迟跳转到登录页面，让用户能看到成功提示
       setTimeout(() => {
+        // 清除登录状态
+        dispatch(clearAuth());
         navigate('/login', { replace: true });
       }, 1000);
       
@@ -45,8 +43,11 @@ const ChangePasswordPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <Card title="修改密码" className={styles.card}>
+    <div className="tw-flex tw-justify-center tw-items-center tw-min-h-screen tw-bg-gray-50">
+      <Card 
+        className="tw-w-full tw-max-w-md tw-shadow-lg"
+      >
+        <div className="tw-text-xl tw-font-semibold tw-mb-6 tw-text-center">修改密码</div>
         <Form
           form={form}
           onFinish={handleSubmit}
@@ -55,7 +56,10 @@ const ChangePasswordPage: React.FC = () => {
           <Form.Item
             label="当前密码"
             name="oldPassword"
-            rules={[{ required: true, message: '请输入当前密码' }]}
+            rules={[
+              { required: true, message: '请输入当前密码' },
+              { min: 6, message: '旧密码长度不能小于6位' }
+            ]}
           >
             <Input.Password />
           </Form.Item>
@@ -90,8 +94,13 @@ const ChangePasswordPage: React.FC = () => {
             <Input.Password />
           </Form.Item>
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>
+          <Form.Item className="tw-mb-2">
+            <Button 
+              type="primary" 
+              htmlType="submit"
+              loading={loading} 
+              className="tw-w-full"
+            >
               确认修改
             </Button>
           </Form.Item>

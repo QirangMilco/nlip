@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"database/sql"
 	"nlip/config"
+	"nlip/models/token"
 	"nlip/models/user"
 	"nlip/utils/jwt"
 	"nlip/utils/logger"
@@ -36,7 +38,7 @@ func HandleLogin(c *fiber.Ctx) error {
 	// 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.Password)); err != nil {
 		logger.Warning("密码验证失败: username=%s", req.Username)
-		return fiber.NewError(fiber.StatusUnauthorized, "用户名或密码错误")
+		return fiber.NewError(fiber.StatusForbidden, "用户名或密码错误")
 	}
 
 	// 生成令牌
@@ -48,7 +50,7 @@ func HandleLogin(c *fiber.Ctx) error {
 
 	logger.Info("用户登录成功: username=%s, id=%s, needChangePwd=%t", u.Username, u.ID, u.NeedChangePwd)
 	return c.JSON(fiber.Map{
-		"code": fiber.StatusOK,
+		"code":    fiber.StatusOK,
 		"message": "登录成功",
 		"data": user.AuthResponse{
 			Token:         token,
@@ -114,7 +116,7 @@ func HandleRegister(c *fiber.Ctx) error {
 
 	logger.Info("用户注册成功: username=%s, id=%s", u.Username, u.ID)
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"code": fiber.StatusCreated,
+		"code":    fiber.StatusCreated,
 		"message": "注册成功",
 		"data": user.AuthResponse{
 			Token: token,
@@ -148,7 +150,7 @@ func HandleGetCurrentUser(c *fiber.Ctx) error {
 
 	logger.Info("成功获取当前用户信息: userId=%s, username=%s", user.UserID, user.Username)
 	return c.JSON(fiber.Map{
-		"code": fiber.StatusOK,
+		"code":    fiber.StatusOK,
 		"message": "获取用户信息成功",
 		"data": fiber.Map{
 			"id":       user.UserID,
@@ -183,7 +185,7 @@ func HandleChangePassword(c *fiber.Ctx) error {
 	// 验证旧密码
 	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.OldPassword)); err != nil {
 		logger.Warning("旧密码验证失败: username=%s", u.Username)
-		return fiber.NewError(fiber.StatusUnauthorized, "旧密码错误")
+		return fiber.NewError(fiber.StatusForbidden, "旧密码错误")
 	}
 
 	// 生成新密码哈希
@@ -207,8 +209,58 @@ func HandleChangePassword(c *fiber.Ctx) error {
 
 	logger.Info("用户 %s 成功修改密码", u.Username)
 	return c.JSON(fiber.Map{
-		"code": fiber.StatusOK,
+		"code":    fiber.StatusOK,
 		"message": "密码修改成功",
-		"data": nil,
+		"data":    nil,
+	})
+}
+
+// HandleTokenLogin 处理Token登录请求
+func HandleTokenLogin(c *fiber.Ctx) error {
+	var req token.TokenLoginRequest
+	if err := c.BodyParser(&req); err != nil {
+		logger.Warning("解析Token登录请求失败: %v", err)
+		return fiber.NewError(fiber.StatusBadRequest, "无效的请求数据")
+	}
+
+	var tokenID string
+	var u user.User
+	err := config.DB.QueryRow(`
+		SELECT t.id, u.* FROM nlip_tokens t
+		JOIN users u ON t.user_id = u.id
+		WHERE u.username = ? AND t.token = ? 
+		AND (t.expires_at IS NULL OR t.expires_at > NOW())
+	`, req.Username, req.Token).Scan(
+		&tokenID, &u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.CreatedAt, &u.NeedChangePwd,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			logger.Warning("Token不存在或已过期: username=%s, token=%s", req.Username, req.Token)
+			return fiber.NewError(fiber.StatusUnauthorized, "Token不存在或已过期")
+		}
+		logger.Error("登录失败: %v", err)
+		return fiber.NewError(fiber.StatusUnauthorized, "登录失败")
+	}
+
+	// 更新最后使用时间
+	_, err = config.DB.Exec("UPDATE nlip_tokens SET last_used_at = NOW() WHERE id = ?", tokenID)
+	if err != nil {
+		logger.Error("更新token最后使用时间失败: %v", err)
+	}
+	// 生成JWT
+	jwtToken, err := jwt.GenerateToken(&u)
+	if err != nil {
+		logger.Error("生成JWT失败: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "生成JWT失败")
+	}
+
+	return c.JSON(fiber.Map{
+		"code":    fiber.StatusOK,
+		"message": "登录成功",
+		"data": token.TokenLoginResponse{
+			JWTToken: jwtToken,
+			User:     &u,
+		},
 	})
 }

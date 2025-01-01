@@ -11,6 +11,7 @@ import (
 	"nlip/middleware/validator"
 	"nlip/models/clip"
 	"nlip/models/space"
+	"nlip/models/token"
 	"nlip/models/user"
 
 	"github.com/gofiber/fiber/v2"
@@ -45,6 +46,7 @@ func setupV1Routes(api fiber.Router) {
 	authRoutes := api.Group("/auth")
 	authRoutes.Post("/login", validator.ValidateBody(&user.LoginRequest{}), authHandler.HandleLogin)
 	authRoutes.Post("/register", validator.ValidateBody(&user.RegisterRequest{}), authHandler.HandleRegister)
+	authRoutes.Post("/token-login", validator.ValidateBody(&token.TokenLoginRequest{}), authHandler.HandleTokenLogin)
 
 	// 3. 需要认证的路由组 - 需要token
 	authenticated := api.Group("")
@@ -55,6 +57,12 @@ func setupV1Routes(api fiber.Router) {
 	authenticated.Post("/auth/change-password",
 		validator.ValidateBody(&user.ChangePasswordRequest{}),
 		authHandler.HandleChangePassword)
+
+	// 用户token相关路由
+	tokenRoutes := authenticated.Group("/token")
+	tokenRoutes.Post("/create", validator.ValidateBody(&token.CreateTokenRequest{}), authHandler.HandleCreateToken)
+	tokenRoutes.Get("/list", authHandler.HandleListTokens)
+	tokenRoutes.Delete("/:tokenId", authHandler.HandleRevokeToken)
 
 	// 用户信息路由
 	infoRoutes := authenticated.Group("/info")

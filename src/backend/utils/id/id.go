@@ -3,6 +3,7 @@ package id
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"encoding/base64"
 	"nlip/config"
 	"nlip/utils/logger"
 	"strings"
@@ -67,4 +68,11 @@ func GenerateClipID(spaceID string) (string, string) {
 
 		logger.Debug("剪贴板ID已存在，重新生成: %s", fullID)
 	}
+}
+
+// GenerateSecureToken 生成安全令牌
+func GenerateSecureToken() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.URLEncoding.EncodeToString(b)
 }

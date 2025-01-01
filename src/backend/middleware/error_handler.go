@@ -10,7 +10,7 @@ func CustomErrorHandler(c *fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 	message := "服务器内部错误"
 
-	// 检查是否是自定义错误
+	// 处理NlipError
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code
 		message = e.Message

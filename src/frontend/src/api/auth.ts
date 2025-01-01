@@ -87,5 +87,6 @@ export const validateTokenAndGetUser = async (): Promise<AuthResponse> => {
 
 export const changePassword = async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
   const response = await http.post('/auth/change-password', data);
+  console.log(response.data);
   return response.data;
 };

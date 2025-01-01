@@ -20,6 +20,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
@@ -72,6 +73,10 @@ func main() {
 	app.Use("/", filesystem.New(filesystem.Config{
 		Root:       http.FS(distFS),
 		Browse:     false,
+		Next: func(c *fiber.Ctx) bool {
+			// 只有当路径不是静态文件时才跳过
+			return !(c.Path() == "/favicon.ico" || strings.HasPrefix(c.Path(), "/assets/"))
+		},
 	}))
 
 	// SPA 路由处理放在最后
