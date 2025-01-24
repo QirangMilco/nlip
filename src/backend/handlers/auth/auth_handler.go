@@ -14,6 +14,17 @@ import (
 )
 
 // HandleLogin 处理登录请求
+// @Summary 用户登录
+// @Description 使用用户名和密码进行登录
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body user.LoginRequest true "登录请求参数"
+// @Success 200 {object} user.AuthResponse "登录成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 401 {object} string "用户名或密码错误"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /auth/login [post]
 func HandleLogin(c *fiber.Ctx) error {
 	var req user.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -61,6 +72,17 @@ func HandleLogin(c *fiber.Ctx) error {
 }
 
 // HandleRegister 处理注册请求
+// @Summary 用户注册
+// @Description 注册新用户
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body user.RegisterRequest true "注册请求参数"
+// @Success 201 {object} user.AuthResponse "注册成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 409 {object} string "用户名已存在"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /auth/register [post]
 func HandleRegister(c *fiber.Ctx) error {
 	var req user.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -126,6 +148,16 @@ func HandleRegister(c *fiber.Ctx) error {
 }
 
 // HandleGetCurrentUser 获取当前登录用户信息
+// @Summary 获取当前用户信息
+// @Description 获取当前登录用户的基本信息
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} user.GetCurrentUserResponse "获取用户信息成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /auth/me [get]
 func HandleGetCurrentUser(c *fiber.Ctx) error {
 	// 从context中获取用户信息
 	userRaw := c.Locals("user")
@@ -161,6 +193,19 @@ func HandleGetCurrentUser(c *fiber.Ctx) error {
 }
 
 // HandleChangePassword 处理修改密码请求
+// @Summary 修改密码
+// @Description 修改当前用户的密码
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body user.ChangePasswordRequest true "修改密码请求参数"
+// @Success 200 {object} string "密码修改成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 401 {object} string "未授权"
+// @Failure 403 {object} string "旧密码错误"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /auth/change-password [post]
 func HandleChangePassword(c *fiber.Ctx) error {
 	var req user.ChangePasswordRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -216,6 +261,17 @@ func HandleChangePassword(c *fiber.Ctx) error {
 }
 
 // HandleTokenLogin 处理Token登录请求
+// @Summary Token登录
+// @Description 使用预先生成的Token进行登录
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body token.TokenLoginRequest true "Token登录请求参数"
+// @Success 200 {object} token.TokenLoginResponse "登录成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 401 {object} string "Token无效或已过期"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /auth/token-login [post]
 func HandleTokenLogin(c *fiber.Ctx) error {
 	var req token.TokenLoginRequest
 	if err := c.BodyParser(&req); err != nil {

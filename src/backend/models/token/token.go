@@ -12,7 +12,7 @@ type Token struct {
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
 	ExpiresAt   *time.Time `json:"expires_at"`
-	LastUsedAt  time.Time `json:"last_used_at"`
+	LastUsedAt  *time.Time `json:"last_used_at"`
 }
 
 type CreateTokenRequest struct {
@@ -20,8 +20,9 @@ type CreateTokenRequest struct {
 	ExpiryDays  *int    `json:"expiry_days" validate:"required,min=1,max=3650"`
 }
 
-type TokenResponse struct {
+type CreateTokenResponse struct {
 	Token string `json:"token"`
+	TokenInfo *Token `json:"token_info"`
 }
 
 type TokenLoginRequest struct {
@@ -32,4 +33,9 @@ type TokenLoginRequest struct {
 type TokenLoginResponse struct {
 	JWTToken string `json:"jwt_token"`
 	User     *user.User  `json:"user"`
+}
+
+type ListTokensResponse struct {
+	Tokens []*Token `json:"tokens"`
+	MaxItems int `json:"max_items"`
 }

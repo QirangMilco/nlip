@@ -13,9 +13,6 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
   <a href="https://github.com/QirangMilco/nlip/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/QirangMilco/nlip" alt="License">
   </a>
-  <a href="https://github.com/QirangMilco/nlip/actions">
-    <img src="https://github.com/QirangMilco/nlip/workflows/CI/badge.svg" alt="CI Status">
-  </a>
 </p>
 
 ## Table of Contents

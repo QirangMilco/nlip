@@ -645,3 +645,73 @@ Notes:
 4. Settings take effect immediately and are saved to configuration file
 5. Public space uploads can be done by guests using the `/guest-upload` endpoint
 6. Ensure the `creator` field is set to "guest" for guest uploads
+
+## Token Related APIs
+
+### Create Token
+- **POST** `/auth/token/create`
+- **Request Body**: 
+```typescript
+{
+  description: string;   // Token description
+  expiryDays?: number;   // Expiry days (optional)
+}
+```
+- **Response**: 
+```typescript
+{
+  code: number;          // HTTP status code
+  message: string;       // Response message
+  data: {
+    token: string;       // Generated token
+    tokenInfo: Token;    // Token information
+  };
+}
+```
+
+### List Tokens
+- **GET** `/auth/token/list`
+- **Authentication Required**: Yes
+- **Response**: 
+```typescript
+{
+  code: number;          // HTTP status code
+  message: string;       // Response message
+  data: {
+    tokens: Array<{
+      id: string;          // Token ID
+      token: string;       // Encrypted Token value
+      description: string; // Token description
+      createdAt: string;   // Creation time
+      expiresAt: string;   // Expiry time
+      lastUsedAt: string;  // Last used time
+    }>;
+    maxItems: number;      // Maximum number of tokens
+  };
+}
+```
+
+### Get Token Value
+- **GET** `/auth/token/:tokenId`
+- **Authentication Required**: Yes
+- **Response**: 
+```typescript
+{
+  code: number;          // HTTP status code
+  message: string;       // Response message
+  data: {
+    token: string;       // Token value
+  };
+}
+```
+
+### Revoke Token
+- **DELETE** `/auth/token/:tokenId`
+- **Authentication Required**: Yes
+- **Response**: 
+```typescript
+{
+  code: number;          // HTTP status code
+  message: string;       // Response message
+}
+```

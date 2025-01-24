@@ -30,12 +30,6 @@ if [ -d $NLIP_STATIC_DIR ]; then
     rm -rf $NLIP_STATIC_DIR
 fi
 
-# 编译前端
-echo "Building frontend"
-cd $NLIP_FRONTEND_DIR
-pnpm install
-pnpm run build
-
 # 复制前端文件
 mkdir -p $NLIP_BACKEND_DIR/static/dist
 echo "Copying frontend files to backend"

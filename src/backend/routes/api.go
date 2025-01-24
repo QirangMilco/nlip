@@ -4,7 +4,6 @@ import (
 	"nlip/handlers/admin"
 	authHandler "nlip/handlers/auth"
 	"nlip/handlers/clips"
-	"nlip/handlers/info"
 	"nlip/handlers/spaces"
 	"nlip/handlers/ws"
 	"nlip/middleware/auth"
@@ -63,10 +62,7 @@ func setupV1Routes(api fiber.Router) {
 	tokenRoutes.Post("/create", validator.ValidateBody(&token.CreateTokenRequest{}), authHandler.HandleCreateToken)
 	tokenRoutes.Get("/list", authHandler.HandleListTokens)
 	tokenRoutes.Delete("/:tokenId", authHandler.HandleRevokeToken)
-
-	// 用户信息路由
-	infoRoutes := authenticated.Group("/info")
-	infoRoutes.Get("/me", info.HandleGetCurrentUserInfo)
+	tokenRoutes.Get("/:tokenId", authHandler.HandleGetToken)
 
 	// 空间路由 - 所有操作都需要验证
 	spaceRoutes := authenticated.Group("/spaces")

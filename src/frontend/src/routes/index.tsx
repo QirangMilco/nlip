@@ -6,6 +6,7 @@ import ClipsPage from '@/pages/clips/ClipsPage';
 import PrivateRoute from '@/components/auth/PrivateRoute';
 import ChangePasswordPage from '@/pages/auth/ChangePasswordPage';
 import InviteConfirmation from '@/pages/auth/InviteConfirmation';
+import SettingsPage from '@/pages/settings/Settings';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -44,6 +45,16 @@ const AppRoutes: React.FC = () => {
         element={
           <PrivateRoute>
             <ChangePasswordPage />
+          </PrivateRoute>
+        }
+      />
+
+      {/* 设置页面路由 */}
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <SettingsPage />
           </PrivateRoute>
         }
       />

@@ -11,7 +11,7 @@ export const useAuth = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-  const { token, user } = useSelector((state: RootState) => state.auth);
+  const { token, user, needChangePwd } = useSelector((state: RootState) => state.auth);
   const validatingRef = useRef(false);
   const [isInitialCheckDone, setIsInitialCheckDone] = useState(false);
 
@@ -62,7 +62,11 @@ export const useAuth = () => {
       const redirect = params.get('redirect') || '/clips';
       setIsInitialCheckDone(true);
       validatingRef.current = false;
-      navigate(redirect);
+      if (redirect === '/change-password' && !needChangePwd) {
+        navigate('/clips');
+      } else {
+        navigate(redirect);
+      }
     } catch (error) {
       dispatch(clearAuth());
       throw error;

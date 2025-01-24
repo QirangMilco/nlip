@@ -1,0 +1,666 @@
+basePath: /api/v1/nlip
+definitions:
+  clip.Clip:
+    properties:
+      clipId:
+        type: string
+      content:
+        type: string
+      contentType:
+        type: string
+      createdAt:
+        type: string
+      creator:
+        $ref: '#/definitions/clip.Creator'
+      filePath:
+        type: string
+      id:
+        type: string
+      spaceId:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  clip.ClipResponse:
+    properties:
+      clip:
+        $ref: '#/definitions/clip.Clip'
+    type: object
+  clip.Creator:
+    properties:
+      id:
+        type: string
+      username:
+        type: string
+    type: object
+  clip.ListClipsResponse:
+    properties:
+      clips:
+        items:
+          $ref: '#/definitions/clip.Clip'
+        type: array
+    type: object
+  clip.UpdateClipRequest:
+    properties:
+      content:
+        type: string
+    required:
+    - content
+    type: object
+  clip.UploadClipRequest:
+    properties:
+      content:
+        type: string
+      contentType:
+        type: string
+      creator:
+        type: string
+      spaceId:
+        type: string
+    type: object
+  token.CreateTokenRequest:
+    properties:
+      description:
+        maxLength: 100
+        type: string
+      expiry_days:
+        maximum: 3650
+        minimum: 1
+        type: integer
+    required:
+    - description
+    - expiry_days
+    type: object
+  token.CreateTokenResponse:
+    properties:
+      token:
+        type: string
+      token_info:
+        $ref: '#/definitions/token.Token'
+    type: object
+  token.ListTokensResponse:
+    properties:
+      max_items:
+        type: integer
+      tokens:
+        items:
+          $ref: '#/definitions/token.Token'
+        type: array
+    type: object
+  token.Token:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      token:
+        type: string
+      user_id:
+        type: string
+    type: object
+  token.TokenLoginRequest:
+    properties:
+      token:
+        type: string
+      username:
+        type: string
+    required:
+    - token
+    - username
+    type: object
+  token.TokenLoginResponse:
+    properties:
+      jwt_token:
+        type: string
+      user:
+        $ref: '#/definitions/user.User'
+    type: object
+  user.AuthResponse:
+    properties:
+      needChangePwd:
+        type: boolean
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/user.User'
+    type: object
+  user.ChangePasswordRequest:
+    properties:
+      newPassword:
+        maxLength: 50
+        minLength: 6
+        type: string
+      oldPassword:
+        maxLength: 50
+        minLength: 6
+        type: string
+    required:
+    - newPassword
+    - oldPassword
+    type: object
+  user.GetCurrentUserResponse:
+    properties:
+      id:
+        type: string
+      isAdmin:
+        type: boolean
+      username:
+        type: string
+    type: object
+  user.LoginRequest:
+    properties:
+      password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  user.RegisterRequest:
+    properties:
+      password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  user.User:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      isAdmin:
+        type: boolean
+      needChangePwd:
+        type: boolean
+      username:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Nlip API
+  title: Nlip API
+  version: "1.0"
+paths:
+  /api/v1/nlip/clips:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户的Clip列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/clip.ListClipsResponse'
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取Clip列表
+      tags:
+      - Clip管理
+    post:
+      consumes:
+      - application/json
+      description: 上传剪贴板内容
+      parameters:
+      - description: 上传Clip请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clip.UploadClipRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功
+          schema:
+            $ref: '#/definitions/clip.ClipResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 上传Clip
+      tags:
+      - Clip管理
+  /api/v1/nlip/clips/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的Clip
+      parameters:
+      - description: Clip ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "403":
+          description: 无权限删除
+          schema:
+            type: string
+        "404":
+          description: Clip不存在
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 删除Clip
+      tags:
+      - Clip管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单个Clip的详细信息
+      parameters:
+      - description: Clip ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/clip.ClipResponse'
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "404":
+          description: Clip不存在
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取Clip详情
+      tags:
+      - Clip管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定Clip的信息
+      parameters:
+      - description: Clip ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新Clip请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clip.UpdateClipRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/clip.ClipResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "403":
+          description: 无权限修改
+          schema:
+            type: string
+        "404":
+          description: Clip不存在
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 更新Clip
+      tags:
+      - Clip管理
+  /api/v1/nlip/tokens:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户的所有Token列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/token.ListTokensResponse'
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取Token列表
+      tags:
+      - Token管理
+    post:
+      consumes:
+      - application/json
+      description: 为用户创建新的访问Token，可用于API认证
+      parameters:
+      - description: 创建Token请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/token.CreateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/token.CreateTokenResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "403":
+          description: 达到最大Token数量限制
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 创建Token
+      tags:
+      - Token管理
+  /api/v1/nlip/tokens/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 撤销指定的Token，使其失效
+      parameters:
+      - description: 要撤销的Token ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 撤销成功
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "404":
+          description: Token不存在
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 撤销Token
+      tags:
+      - Token管理
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: 修改当前用户的密码
+      parameters:
+      - description: 修改密码请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 密码修改成功
+          schema:
+            type: string
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "403":
+          description: 旧密码错误
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 修改密码
+      tags:
+      - 认证
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名和密码进行登录
+      parameters:
+      - description: 登录请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            $ref: '#/definitions/user.AuthResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: 用户名或密码错误
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      summary: 用户登录
+      tags:
+      - 认证
+  /auth/me:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前登录用户的基本信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取用户信息成功
+          schema:
+            $ref: '#/definitions/user.GetCurrentUserResponse'
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户信息
+      tags:
+      - 认证
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册新用户
+      parameters:
+      - description: 注册请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 注册成功
+          schema:
+            $ref: '#/definitions/user.AuthResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "409":
+          description: 用户名已存在
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      summary: 用户注册
+      tags:
+      - 认证
+  /auth/token-login:
+    post:
+      consumes:
+      - application/json
+      description: 使用预先生成的Token进行登录
+      parameters:
+      - description: Token登录请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/token.TokenLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            $ref: '#/definitions/token.TokenLoginResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: Token无效或已过期
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      summary: Token登录
+      tags:
+      - 认证
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

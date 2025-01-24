@@ -33,3 +33,9 @@ type ChangePasswordRequest struct {
 	OldPassword string `json:"oldPassword" validate:"required,min=6,max=50"`
 	NewPassword string `json:"newPassword" validate:"required,min=6,max=50"`
 }
+
+type GetCurrentUserResponse struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	IsAdmin  bool   `json:"isAdmin"`
+}

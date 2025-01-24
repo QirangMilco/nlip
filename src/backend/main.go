@@ -22,6 +22,9 @@ import (
 	"time"
 	"strings"
 
+	"github.com/gofiber/swagger"
+	_ "nlip/docs"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
@@ -29,6 +32,14 @@ import (
 //go:embed static/dist/*
 var embedDistFiles embed.FS
 
+// @title Nlip API
+// @version 1.0
+// @description Nlip API
+// @BasePath /api/v1/nlip
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @schemes http https
 func main() {
 	// 加载配置
 	config.LoadConfig()
@@ -62,6 +73,13 @@ func main() {
 	// API路由组 - 移到静态文件处理之前
 	api := app.Group("/api")
 	routes.SetupRoutes(api)
+
+	// 添加 Swagger 路由
+	// app.Get("/docs/*", swagger.New(swagger.Config{
+	// 	URL:         "/swagger.json",
+	// 	DeepLinking: true,
+	// }))
+	app.Get("/docs/*", swagger.HandlerDefault)
 
 	// 静态文件服务
 	distFS, err := fs.Sub(embedDistFiles, "static/dist")

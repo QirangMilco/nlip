@@ -196,6 +196,18 @@ func scanSingleClip(row *sql.Row) (*clip.Clip, error) {
 }
 
 // HandleUploadClip 处理上传剪贴板内容
+// @Summary 上传Clip
+// @Description 上传剪贴板内容
+// @Tags Clip管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body clip.UploadClipRequest true "上传Clip请求参数"
+// @Success 200 {object} clip.ClipResponse "上传成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/clips [post]
 func HandleUploadClip(c *fiber.Ctx) error {
 	var req clip.UploadClipRequest
 	userID := GuestUserID
@@ -343,6 +355,18 @@ func HandleUploadClip(c *fiber.Ctx) error {
 }
 
 // HandleListClips 获取剪贴板内容列表
+// @Summary 获取Clip列表
+// @Description 获取当前用户的Clip列表
+// @Tags Clip管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param pageSize query int false "每页数量" default(20)
+// @Success 200 {object} clip.ListClipsResponse "获取成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/clips [get]
 func HandleListClips(c *fiber.Ctx) error {
 	s := c.Locals("space").(space.Space)
 
@@ -382,6 +406,18 @@ func HandleListClips(c *fiber.Ctx) error {
 }
 
 // HandleGetClip 获取单个剪贴板内容
+// @Summary 获取Clip详情
+// @Description 根据ID获取单个Clip的详细信息
+// @Tags Clip管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Clip ID"
+// @Success 200 {object} clip.ClipResponse "获取成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 404 {object} string "Clip不存在"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/clips/{id} [get]
 func HandleGetClip(c *fiber.Ctx) error {
 	s := c.Locals("space").(space.Space)
 	clipID := c.Params("clipId")
@@ -429,6 +465,19 @@ func HandleGetClip(c *fiber.Ctx) error {
 }
 
 // HandleDeleteClip 删除剪贴板内容
+// @Summary 删除Clip
+// @Description 删除指定的Clip
+// @Tags Clip管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Clip ID"
+// @Success 200 {object} string "删除成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 403 {object} string "无权限删除"
+// @Failure 404 {object} string "Clip不存在"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/clips/{id} [delete]
 func HandleDeleteClip(c *fiber.Ctx) error {
 	s := c.Locals("space").(space.Space)
 	clipID := c.Params("clipId")
@@ -437,7 +486,7 @@ func HandleDeleteClip(c *fiber.Ctx) error {
 
 	logger.Debug("处理删除剪贴板内容请求: spaceID=%s, clipID=%s", s.ID, clipID)
 
-	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+	err := db.WithTransaction(config.DB, func(tx *sql.Tx) error {
 		// 权限检查
 		_, err := checkClipPermission(tx, s.ID, s.Type, clipID, userID, isAdmin)
 		if err != nil {
@@ -464,15 +513,37 @@ func HandleDeleteClip(c *fiber.Ctx) error {
 				logger.Error("删除文件失败: %v", err)
 			}
 		}
+		return nil
+	})
 
-		logger.Info("用户 %s 删除了剪贴板内容: spaceID=%s, clipID=%s", userID, s.ID, clipID)
-		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{
-			"code": fiber.StatusNoContent,
-		})
+	if err != nil {
+		return err
+	}
+
+	logger.Info("用户 %s 删除了剪贴板内容: spaceID=%s, clipID=%s", userID, s.ID, clipID)
+	return c.JSON(fiber.Map{
+		"code":    fiber.StatusOK,
+		"message": "删除成功",
+		"data":    nil,
 	})
 }
 
 // HandleUpdateClip 处理更新剪贴板内容
+// @Summary 更新Clip
+// @Description 更新指定Clip的信息
+// @Tags Clip管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Clip ID"
+// @Param request body clip.UpdateClipRequest true "更新Clip请求参数"
+// @Success 200 {object} clip.ClipResponse "更新成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 401 {object} string "未授权"
+// @Failure 403 {object} string "无权限修改"
+// @Failure 404 {object} string "Clip不存在"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/clips/{id} [put]
 func HandleUpdateClip(c *fiber.Ctx) error {
 	s := c.Locals("space").(space.Space)
 	clipID := c.Params("clipId")

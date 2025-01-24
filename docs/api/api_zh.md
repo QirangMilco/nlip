@@ -597,3 +597,73 @@ interface WSMessage {
 5. 公共空间的上传可以通过 `/guest-upload` 接口由游客完成。
 6. 确保游客上传时 `creator` 字段设置为 "guest"。
 
+## Token 相关 API
+
+### 创建 Token
+- **POST** `/auth/token/create`
+- **请求体**: 
+```typescript
+{
+  description: string;   // Token 描述
+  expiryDays?: number;   // 过期天数（可选）
+}
+```
+- **响应**: 
+```typescript
+{
+  code: number;          // HTTP 状态码
+  message: string;       // 响应消息
+  data: {
+    token: string;       // 生成的 Token
+    tokenInfo: Token;    // Token 信息
+  };
+}
+```
+
+### 列出 Token
+- **GET** `/auth/token/list`
+- **需要认证**: 是
+- **响应**: 
+```typescript
+{
+  code: number;          // HTTP 状态码
+  message: string;       // 响应消息
+  data: {
+    tokens: Array<{
+      id: string;          // Token ID
+      token: string;       // 加密的Token值
+      description: string; // Token 描述
+      createdAt: string;   // 创建时间
+      expiresAt: string;   // 过期时间
+      lastUsedAt: string;  // 最后使用时间
+    }>;
+    maxItems: number;      // 最大Token数量
+  };
+}
+```
+
+### 获取 Token 值
+- **GET** `/auth/token/:tokenId`
+- **需要认证**: 是
+- **响应**: 
+```typescript
+{
+  code: number;          // HTTP 状态码
+  message: string;       // 响应消息
+  data: {
+    token: string;       // Token值
+  };
+}
+```
+
+### 撤销 Token
+- **DELETE** `/auth/token/:tokenId`
+- **需要认证**: 是
+- **响应**: 
+```typescript
+{
+  code: number;          // HTTP 状态码
+  message: string;       // 响应消息
+}
+```
+

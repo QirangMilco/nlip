@@ -1,9 +1,9 @@
 import React from 'react';
 import { 
   HomeOutlined, 
-  UserOutlined,
   LogoutOutlined,
-  LoginOutlined
+  LoginOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 import SidebarItem from './SidebarItem';
 
@@ -71,9 +71,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 active={true}
               />
               <SidebarItem
-                icon={<UserOutlined />}
-                text="修改密码" 
-                onClick={() => navigate('/change-password')}
+                icon={<SettingOutlined />}
+                text="设置"
+                onClick={() => navigate('/settings')}
               />
               <SidebarItem
                 icon={<LogoutOutlined />}

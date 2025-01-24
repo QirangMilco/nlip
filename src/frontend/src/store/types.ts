@@ -163,3 +163,46 @@ export interface VerifyInviteTokenResponse {
 export interface ListCollaboratorsResponse {
   collaborators: Collaborator[];
 }
+
+// Token相关类型
+export interface Token {
+  id: string;
+  description: string;
+  token: string;
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt: string;
+}
+
+// 创建Token请求参数
+export interface CreateTokenRequest {
+  description: string;
+  expiresAt?: string; // ISO格式日期字符串
+}
+
+// 创建Token响应
+export interface CreateTokenResponse {
+  token: string; // 完整的Token字符串
+  tokenInfo: Token;
+}
+
+//获取单个Token请求参数
+export interface GetTokenRequest {
+  tokenId: string;
+}
+
+// 获取Token列表响应
+export interface ListTokensResponse {
+  tokens: Token[];
+  maxItems: number;
+}
+
+// 获取单个Token响应
+export interface GetTokenResponse {
+  token: string;
+}
+
+// 删除Token请求参数
+export interface DeleteTokenRequest {
+  tokenId: string;
+}
