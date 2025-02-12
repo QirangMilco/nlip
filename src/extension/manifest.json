@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Nlip",
+  "version": "1.0",
+  "icons": {
+    "128": "icon-128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "notifications"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "commands": {
+    "copy-to-nlip": {
+      "suggested_key": {
+        "default": "Alt+C"
+      },
+      "description": "复制到Nlip"
+    },
+    "paste-from-nlip": {
+      "suggested_key": {
+        "default": "Alt+V"
+      },
+      "description": "从Nlip粘贴"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+} 

@@ -1,0 +1,23 @@
+{
+	"dependencies": {
+		"@emotion/react": "^11.14.0",
+		"@emotion/styled": "^11.14.0",
+		"@mui/material": "^6.4.4",
+		"@types/react": "^19.0.8",
+		"@types/react-dom": "^19.0.3",
+		"add": "^2.0.6",
+		"pnpm": "^10.3.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
+	},
+	"devDependencies": {
+		"parcel": "^2.13.3",
+		"process": "^0.11.10"
+	},
+	"scripts": {
+		"build": "parcel build popup.js --public-url ./ --no-source-maps && cp manifest.json popup.html background.js icon-128.png dist/"
+	},
+	"browserslist": [
+		"last 3 Chrome versions"
+	]
+}

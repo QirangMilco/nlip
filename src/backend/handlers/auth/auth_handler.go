@@ -24,7 +24,7 @@ import (
 // @Failure 400 {object} string "请求参数错误"
 // @Failure 401 {object} string "用户名或密码错误"
 // @Failure 500 {object} string "服务器内部错误"
-// @Router /auth/login [post]
+// @Router /api/v1/nlip/auth/login [post]
 func HandleLogin(c *fiber.Ctx) error {
 	var req user.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -82,7 +82,7 @@ func HandleLogin(c *fiber.Ctx) error {
 // @Failure 400 {object} string "请求参数错误"
 // @Failure 409 {object} string "用户名已存在"
 // @Failure 500 {object} string "服务器内部错误"
-// @Router /auth/register [post]
+// @Router /api/v1/nlip/auth/register [post]
 func HandleRegister(c *fiber.Ctx) error {
 	var req user.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -157,7 +157,7 @@ func HandleRegister(c *fiber.Ctx) error {
 // @Success 200 {object} user.GetCurrentUserResponse "获取用户信息成功"
 // @Failure 401 {object} string "未授权"
 // @Failure 500 {object} string "服务器内部错误"
-// @Router /auth/me [get]
+// @Router /api/v1/nlip/auth/me [get]
 func HandleGetCurrentUser(c *fiber.Ctx) error {
 	// 从context中获取用户信息
 	userRaw := c.Locals("user")
@@ -205,7 +205,7 @@ func HandleGetCurrentUser(c *fiber.Ctx) error {
 // @Failure 401 {object} string "未授权"
 // @Failure 403 {object} string "旧密码错误"
 // @Failure 500 {object} string "服务器内部错误"
-// @Router /auth/change-password [post]
+// @Router /api/v1/nlip/auth/change-password [post]
 func HandleChangePassword(c *fiber.Ctx) error {
 	var req user.ChangePasswordRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -271,7 +271,7 @@ func HandleChangePassword(c *fiber.Ctx) error {
 // @Failure 400 {object} string "请求参数错误"
 // @Failure 401 {object} string "Token无效或已过期"
 // @Failure 500 {object} string "服务器内部错误"
-// @Router /auth/token-login [post]
+// @Router /api/v1/nlip/auth/token-login [post]
 func HandleTokenLogin(c *fiber.Ctx) error {
 	var req token.TokenLoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -282,10 +282,10 @@ func HandleTokenLogin(c *fiber.Ctx) error {
 	var tokenID string
 	var u user.User
 	err := config.DB.QueryRow(`
-		SELECT t.id, u.* FROM nlip_tokens t
-		JOIN users u ON t.user_id = u.id
+		SELECT t.id, u.id, u.username, u.password_hash, u.is_admin, u.created_at, u.need_change_pwd FROM nlip_tokens t
+		JOIN nlip_users u ON t.user_id = u.id
 		WHERE u.username = ? AND t.token = ? 
-		AND (t.expires_at IS NULL OR t.expires_at > NOW())
+		AND (t.expires_at IS NULL OR t.expires_at > strftime('%s', 'now'))
 	`, req.Username, req.Token).Scan(
 		&tokenID, &u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.CreatedAt, &u.NeedChangePwd,
 	)
@@ -300,7 +300,7 @@ func HandleTokenLogin(c *fiber.Ctx) error {
 	}
 
 	// 更新最后使用时间
-	_, err = config.DB.Exec("UPDATE nlip_tokens SET last_used_at = NOW() WHERE id = ?", tokenID)
+	_, err = config.DB.Exec("UPDATE nlip_tokens SET last_used_at = strftime('%s', 'now') WHERE id = ?", tokenID)
 	if err != nil {
 		logger.Error("更新token最后使用时间失败: %v", err)
 	}

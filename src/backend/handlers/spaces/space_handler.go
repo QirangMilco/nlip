@@ -24,6 +24,14 @@ func getMessage(emailEnabled bool) string {
 	return "生成邀请链接成功，请手动将邀请链接发送给协作者"
 }
 
+// getSpace 获取空间信息
+// @Summary 获取单个空间信息
+// @Description 通过空间ID获取空间详细信息，优先从locals获取，不存在时查询数据库
+// @Tags 空间
+// @Param spaceID path string true "空间ID"
+// @Success 200 {object} space.Space "获取空间信息成功"
+// @Failure 404 {object} string "空间不存在"
+// @Failure 500 {object} string "服务器内部错误"
 func getSpace(c *fiber.Ctx, spaceID string) (space.Space, error) {
 	if c.Locals("space") != nil {
 		localSpace := c.Locals("space").(space.Space)
@@ -82,7 +90,17 @@ func getSpace(c *fiber.Ctx, spaceID string) (space.Space, error) {
 	return s, nil
 }
 
-// HandleListSpaces 处理获取空间列表
+// HandleListSpaces 获取空间列表
+// @Summary 获取空间列表
+// @Description 获取当前用户有权限访问的空间列表，包括自己创建的和协作的空间
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} space.ListSpacesResponse "获取空间列表成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/list [get]
 func HandleListSpaces(c *fiber.Ctx) error {
 	// 尝试获取用户信息，如果不存在则表示未认证
 	userID, ok := c.Locals("userId").(string)
@@ -198,7 +216,19 @@ func HandleListSpaces(c *fiber.Ctx) error {
 	})
 }
 
-// HandleCreateSpace 处理创建空间
+// HandleCreateSpace 创建空间
+// @Summary 创建新空间
+// @Description 创建一个新的空间，普通用户只能创建私有空间，管理员可以创建公共空间
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body space.CreateSpaceRequest true "创建空间请求参数"
+// @Success 201 {object} space.SpaceResponse "创建空间成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 403 {object} string "没有权限创建公共空间"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/create [post]
 func HandleCreateSpace(c *fiber.Ctx) error {
 	var req space.CreateSpaceRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -267,7 +297,19 @@ func HandleCreateSpace(c *fiber.Ctx) error {
 	})
 }
 
-// HandleUpdateSpace 处理更新空间
+// HandleUpdateSpace 更新空间信息
+// @Summary 更新空间
+// @Description 更新空间信息，普通用户只能更新自己拥有的私有空间，管理员可以更新所有空间
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body space.UpdateSpaceRequest true "更新空间请求参数"
+// @Success 200 {object} space.Space "更新成功，返回更新后的空间信息"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 403 {object} string "没有权限更新该空间"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/{id} [put]
 func HandleUpdateSpace(c *fiber.Ctx) error {
 	var req space.UpdateSpaceRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -371,6 +413,14 @@ func HandleUpdateSpace(c *fiber.Ctx) error {
 }
 
 // HandleDeleteSpace 删除空间
+// @Summary 删除空间
+// @Description 删除空间及其所有内容，普通用户只能删除自己拥有的私有空间，管理员可以删除所有空间
+// @Tags 空间
+// @Security BearerAuth
+// @Success 200 {object} string "删除成功"
+// @Failure 403 {object} string "没有权限删除该空间"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/{id} [delete]
 func HandleDeleteSpace(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 	s := c.Locals("space").(space.Space)
@@ -410,7 +460,19 @@ func HandleDeleteSpace(c *fiber.Ctx) error {
 	})
 }
 
-// HandleInviteCollaborator 处理邀请协作者
+// HandleInviteCollaborator 邀请协作者
+// @Summary 邀请协作者
+// @Description 生成邀请链接并可选发送邀请邮件，只有空间所有者可以邀请协作者
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body space.InviteCollaboratorRequest true "邀请协作者请求参数"
+// @Success 200 {object} space.InviteCollaboratorResponse "邀请成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 403 {object} string "没有权限邀请协作者"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/{id}/invite [post]
 func HandleInviteCollaborator(c *fiber.Ctx) error {
 	var req space.InviteCollaboratorRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -478,6 +540,17 @@ func HandleInviteCollaborator(c *fiber.Ctx) error {
 }
 
 // HandleVerifyInviteToken 验证邀请令牌
+// @Summary 验证邀请令牌
+// @Description 验证邀请令牌的有效性，返回空间信息和邀请者信息
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body space.ValidateInviteRequest true "验证邀请令牌请求参数"
+// @Success 200 {object} space.VerifyInviteTokenResponse "验证成功"
+// @Failure 400 {object} string "无效的邀请链接或已过期"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/invite/verify [post]
 func HandleVerifyInviteToken(c *fiber.Ctx) error {
 	var req space.ValidateInviteRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -534,7 +607,19 @@ func HandleVerifyInviteToken(c *fiber.Ctx) error {
 	})
 }
 
-// HandleAcceptInvite 处理接受邀请
+// HandleAcceptInvite 接受邀请
+// @Summary 接受邀请
+// @Description 接受空间邀请并成为协作者
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body space.AcceptInviteRequest true "接受邀请请求参数"
+// @Success 200 {object} string "成功加入空间"
+// @Failure 400 {object} string "无效的请求数据或用户已加入空间"
+// @Failure 403 {object} string "空间所有者不能接受邀请"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/invite/accept [post]
 func HandleAcceptInvite(c *fiber.Ctx) error {
 	var req space.AcceptInviteRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -623,10 +708,23 @@ func HandleAcceptInvite(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "成功加入空间",
+		"data":    nil,
 	})
 }
 
-// HandleRemoveCollaborator 处理删除协作者
+// HandleRemoveCollaborator 删除协作者
+// @Summary 删除协作者
+// @Description 从空间中删除协作者，只有空间所有者可以执行此操作
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body space.RemoveCollaboratorRequest true "删除协作者请求参数"
+// @Success 200 {object} string "删除协作者成功"
+// @Failure 400 {object} string "协作者不存在"
+// @Failure 403 {object} string "没有权限删除协作者"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/{id}/collaborators [delete]
 func HandleRemoveCollaborator(c *fiber.Ctx) error {
 	var req space.RemoveCollaboratorRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -674,10 +772,23 @@ func HandleRemoveCollaborator(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "删除协作者成功",
+		"data":    nil,
 	})
 }
 
-// HandleUpdateCollaboratorPermissions 处理更新协作者权限
+// HandleUpdateCollaboratorPermissions 更新协作者权限
+// @Summary 更新协作者权限
+// @Description 更新指定协作者的权限，只有空间所有者可以执行此操作
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body space.UpdateCollaboratorPermissionsRequest true "更新协作者权限请求参数"
+// @Success 200 {object} string "更新协作者权限成功"
+// @Failure 400 {object} string "协作者不存在"
+// @Failure 403 {object} string "没有权限更新协作者权限"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/{id}/collaborators/permissions [put]
 func HandleUpdateCollaboratorPermissions(c *fiber.Ctx) error {
 	var req space.UpdateCollaboratorPermissionsRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -727,10 +838,23 @@ func HandleUpdateCollaboratorPermissions(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "更新协作者权限成功",
+		"data":    nil,
 	})
 }
 
-// HandleUpdateSpaceSettings 处理更新空间设置
+// HandleUpdateSpaceSettings 更新空间设置
+// @Summary 更新空间设置
+// @Description 更新空间设置，普通用户只能更新自己拥有的私有空间，管理员可以更新所有空间
+// @Tags 空间
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body space.UpdateSpaceSettingsRequest true "更新空间设置请求参数"
+// @Success 200 {object} space.Space "更新成功，返回更新后的空间信息"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 403 {object} string "没有权限更新该空间设置"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/{id}/settings [put]
 func HandleUpdateSpaceSettings(c *fiber.Ctx) error {
 	var req space.UpdateSpaceSettingsRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -791,7 +915,15 @@ func HandleUpdateSpaceSettings(c *fiber.Ctx) error {
 	})
 }
 
-// HandleSpaceStats 处理获取空间统计信息
+// HandleSpaceStats 获取空间统计信息
+// @Summary 获取空间统计信息
+// @Description 获取空间的统计信息，包括剪贴板数量和所有者信息
+// @Tags 空间
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} space.SpaceStatsResponse "获取统计信息成功"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/{id}/stats [get]
 func HandleSpaceStats(c *fiber.Ctx) error {
 	s := c.Locals("space").(space.Space)
 
@@ -822,14 +954,23 @@ func HandleSpaceStats(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "获取空间统计信息成功",
-		"data": fiber.Map{
-			"clipCount":     clipCount,
-			"ownerUsername": ownerUsername,
+		"data": space.SpaceStatsResponse{
+			ClipsCount:     clipCount,
+			OwnerUsername:  ownerUsername,
 		},
 	})
 }
 
-// HandleListCollaborators 处理获取空间协作者列表
+// HandleListCollaborators 获取空间协作者列表
+// @Summary 获取空间协作者列表
+// @Description 获取指定空间的协作者列表，公共空间不支持此功能
+// @Tags 空间
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} space.ListCollaboratorsResponse "获取协作者列表成功"
+// @Failure 400 {object} string "公共空间不支持协作者功能"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/spaces/{id}/collaborators [get]
 func HandleListCollaborators(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 	s := c.Locals("space").(space.Space)

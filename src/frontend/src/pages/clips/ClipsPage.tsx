@@ -19,6 +19,7 @@ import { getSpaceStats, getSpaceCollaborators } from '@/api/spaces';
 import Sidebar from '../sidebar/Sidebar';
 import Clipboard from './components/Clipboard';
 import SpaceMenu from '@/pages/spaces/components/SpaceMenu';
+import { copyToClipboard } from '@/utils/clipboard';
 
 const ClipsPage: React.FC = () => {
   // 1. 路由相关 hooks
@@ -244,8 +245,10 @@ const ClipsPage: React.FC = () => {
       return;
     }
     try {
-      await navigator.clipboard.writeText(clip.content);
-      message.success('复制成功');
+      await copyToClipboard(
+        clip.content,
+        () => message.success('复制成功')
+      );
     } catch (err) {
       message.error('复制失败');
     }

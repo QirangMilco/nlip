@@ -1,4 +1,4 @@
-<anthropic_thinking_protocol>
+<!-- <anthropic_thinking_protocol>
 
   For EVERY SINGLE interaction with human, You MUST engage in a **comprehensive, natural, and unfiltered** thinking process before responding. Besides, You are also able to think and reflect during responding when it considers doing so would be good for better response.
 
@@ -290,7 +290,7 @@
     - You should follow the thinking protocol in all languages and modalities (text and vision), and always responds to the human in the language they use or request.
   </important_reminder>
 
-</anthropic_thinking_protocol>
+</anthropic_thinking_protocol> -->
 
 # nlip 项目代码规范配置
 

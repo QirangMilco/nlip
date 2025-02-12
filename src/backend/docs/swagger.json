@@ -8,6 +8,265 @@
     },
     "basePath": "/api/v1/nlip",
     "paths": {
+        "/api/v1/nlip/auth/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "修改当前用户的密码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "修改密码",
+                "parameters": [
+                    {
+                        "description": "修改密码请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "密码修改成功",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "旧密码错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/auth/login": {
+            "post": {
+                "description": "使用用户名和密码进行登录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "用户登录",
+                "parameters": [
+                    {
+                        "description": "登录请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "登录成功",
+                        "schema": {
+                            "$ref": "#/definitions/user.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "用户名或密码错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取当前登录用户的基本信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "获取当前用户信息",
+                "responses": {
+                    "200": {
+                        "description": "获取用户信息成功",
+                        "schema": {
+                            "$ref": "#/definitions/user.GetCurrentUserResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/auth/register": {
+            "post": {
+                "description": "注册新用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "用户注册",
+                "parameters": [
+                    {
+                        "description": "注册请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "注册成功",
+                        "schema": {
+                            "$ref": "#/definitions/user.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "用户名已存在",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/auth/token-login": {
+            "post": {
+                "description": "使用预先生成的Token进行登录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "Token登录",
+                "parameters": [
+                    {
+                        "description": "Token登录请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/token.TokenLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "登录成功",
+                        "schema": {
+                            "$ref": "#/definitions/token.TokenLoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Token无效或已过期",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/nlip/clips": {
             "get": {
                 "security": [
@@ -23,25 +282,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Clip管理"
+                    "剪贴板"
                 ],
                 "summary": "获取Clip列表",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "页码",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "每页数量",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "获取成功",
@@ -77,7 +320,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Clip管理"
+                    "剪贴板"
                 ],
                 "summary": "上传Clip",
                 "parameters": [
@@ -134,7 +377,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Clip管理"
+                    "剪贴板"
                 ],
                 "summary": "获取Clip详情",
                 "parameters": [
@@ -187,7 +430,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Clip管理"
+                    "剪贴板"
                 ],
                 "summary": "更新Clip",
                 "parameters": [
@@ -261,7 +504,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Clip管理"
+                    "剪贴板"
                 ],
                 "summary": "删除Clip",
                 "parameters": [
@@ -307,6 +550,594 @@
                 }
             }
         },
+        "/api/v1/nlip/spaces/create": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建一个新的空间，普通用户只能创建私有空间，管理员可以创建公共空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "创建新空间",
+                "parameters": [
+                    {
+                        "description": "创建空间请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/space.CreateSpaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "创建空间成功",
+                        "schema": {
+                            "$ref": "#/definitions/space.SpaceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "没有权限创建公共空间",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/invite/accept": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "接受空间邀请并成为协作者",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "接受邀请",
+                "parameters": [
+                    {
+                        "description": "接受邀请请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/space.AcceptInviteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功加入空间",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的请求数据或用户已加入空间",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "空间所有者不能接受邀请",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/invite/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "验证邀请令牌的有效性，返回空间信息和邀请者信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "验证邀请令牌",
+                "parameters": [
+                    {
+                        "description": "验证邀请令牌请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/space.ValidateInviteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "验证成功",
+                        "schema": {
+                            "$ref": "#/definitions/space.VerifyInviteTokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的邀请链接或已过期",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取当前用户有权限访问的空间列表，包括自己创建的和协作的空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "获取空间列表",
+                "responses": {
+                    "200": {
+                        "description": "获取空间列表成功",
+                        "schema": {
+                            "$ref": "#/definitions/space.ListSpacesResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新空间信息，普通用户只能更新自己拥有的私有空间，管理员可以更新所有空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "更新空间",
+                "parameters": [
+                    {
+                        "description": "更新空间请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/space.UpdateSpaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功，返回更新后的空间信息",
+                        "schema": {
+                            "$ref": "#/definitions/space.Space"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "没有权限更新该空间",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除空间及其所有内容，普通用户只能删除自己拥有的私有空间，管理员可以删除所有空间",
+                "tags": [
+                    "空间"
+                ],
+                "summary": "删除空间",
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "没有权限删除该空间",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/{id}/collaborators": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定空间的协作者列表，公共空间不支持此功能",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "获取空间协作者列表",
+                "responses": {
+                    "200": {
+                        "description": "获取协作者列表成功",
+                        "schema": {
+                            "$ref": "#/definitions/space.ListCollaboratorsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "公共空间不支持协作者功能",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "从空间中删除协作者，只有空间所有者可以执行此操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "删除协作者",
+                "parameters": [
+                    {
+                        "description": "删除协作者请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/space.RemoveCollaboratorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除协作者成功",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "协作者不存在",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "没有权限删除协作者",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/{id}/collaborators/permissions": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新指定协作者的权限，只有空间所有者可以执行此操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "更新协作者权限",
+                "parameters": [
+                    {
+                        "description": "更新协作者权限请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/space.UpdateCollaboratorPermissionsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新协作者权限成功",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "协作者不存在",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "没有权限更新协作者权限",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/{id}/invite": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "生成邀请链接并可选发送邀请邮件，只有空间所有者可以邀请协作者",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "邀请协作者",
+                "parameters": [
+                    {
+                        "description": "邀请协作者请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/space.InviteCollaboratorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "邀请成功",
+                        "schema": {
+                            "$ref": "#/definitions/space.InviteCollaboratorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "没有权限邀请协作者",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/{id}/settings": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新空间设置，普通用户只能更新自己拥有的私有空间，管理员可以更新所有空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "更新空间设置",
+                "parameters": [
+                    {
+                        "description": "更新空间设置请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/space.UpdateSpaceSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功，返回更新后的空间信息",
+                        "schema": {
+                            "$ref": "#/definitions/space.Space"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "没有权限更新该空间设置",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nlip/spaces/{id}/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取空间的统计信息，包括剪贴板数量和所有者信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间"
+                ],
+                "summary": "获取空间统计信息",
+                "responses": {
+                    "200": {
+                        "description": "获取统计信息成功",
+                        "schema": {
+                            "$ref": "#/definitions/space.SpaceStatsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/nlip/tokens": {
             "get": {
                 "security": [
@@ -322,7 +1153,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Token管理"
+                    "Token"
                 ],
                 "summary": "获取Token列表",
                 "responses": {
@@ -360,7 +1191,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Token管理"
+                    "Token"
                 ],
                 "summary": "创建Token",
                 "parameters": [
@@ -423,7 +1254,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Token管理"
+                    "Token"
                 ],
                 "summary": "撤销Token",
                 "parameters": [
@@ -463,258 +1294,34 @@
                 }
             }
         },
-        "/auth/change-password": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "修改当前用户的密码",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "认证"
-                ],
-                "summary": "修改密码",
-                "parameters": [
-                    {
-                        "description": "修改密码请求参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user.ChangePasswordRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "密码修改成功",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "未授权",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "旧密码错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/login": {
-            "post": {
-                "description": "使用用户名和密码进行登录",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "认证"
-                ],
-                "summary": "用户登录",
-                "parameters": [
-                    {
-                        "description": "登录请求参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user.LoginRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "登录成功",
-                        "schema": {
-                            "$ref": "#/definitions/user.AuthResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "用户名或密码错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/me": {
+        "/api/v1/nlip/ws": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "获取当前登录用户的基本信息",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
+                "description": "建立WebSocket连接并进行消息通信",
                 "tags": [
-                    "认证"
+                    "WebSocket"
                 ],
-                "summary": "获取当前用户信息",
-                "responses": {
-                    "200": {
-                        "description": "获取用户信息成功",
-                        "schema": {
-                            "$ref": "#/definitions/user.GetCurrentUserResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "未授权",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/register": {
-            "post": {
-                "description": "注册新用户",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "认证"
-                ],
-                "summary": "用户注册",
+                "summary": "WebSocket连接",
                 "parameters": [
                     {
-                        "description": "注册请求参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user.RegisterRequest"
-                        }
+                        "type": "string",
+                        "description": "认证Token",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "注册成功",
-                        "schema": {
-                            "$ref": "#/definitions/user.AuthResponse"
-                        }
+                    "101": {
+                        "description": "Switching Protocols"
                     },
                     "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "409": {
-                        "description": "用户名已存在",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/token-login": {
-            "post": {
-                "description": "使用预先生成的Token进行登录",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "认证"
-                ],
-                "summary": "Token登录",
-                "parameters": [
-                    {
-                        "description": "Token登录请求参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/token.TokenLoginRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "登录成功",
-                        "schema": {
-                            "$ref": "#/definitions/token.TokenLoginResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
+                        "description": "缺少Token参数",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "401": {
-                        "description": "Token无效或已过期",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
+                        "description": "Token验证失败",
                         "schema": {
                             "type": "string"
                         }
@@ -814,21 +1421,301 @@
                 }
             }
         },
+        "space.AcceptInviteRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "space.CollaboratorInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "permission": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "space.CreateSpaceRequest": {
+            "type": "object",
+            "required": [
+                "collaborators",
+                "maxItems",
+                "name",
+                "retentionDays"
+            ],
+            "properties": {
+                "collaborators": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/space.CollaboratorInfo"
+                    }
+                },
+                "maxItems": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
+                "retentionDays": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "public",
+                        "private"
+                    ]
+                }
+            }
+        },
+        "space.InviteCollaboratorRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "permission"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "permission": {
+                    "type": "string",
+                    "enum": [
+                        "edit",
+                        "view"
+                    ]
+                }
+            }
+        },
+        "space.InviteCollaboratorResponse": {
+            "type": "object",
+            "properties": {
+                "inviteLink": {
+                    "type": "string"
+                }
+            }
+        },
+        "space.ListCollaboratorsResponse": {
+            "type": "object",
+            "properties": {
+                "collaborators": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/space.CollaboratorInfo"
+                    }
+                }
+            }
+        },
+        "space.ListSpacesResponse": {
+            "type": "object",
+            "properties": {
+                "spaces": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/space.Space"
+                    }
+                }
+            }
+        },
+        "space.RemoveCollaboratorRequest": {
+            "type": "object",
+            "required": [
+                "collaboratorId"
+            ],
+            "properties": {
+                "collaboratorId": {
+                    "type": "string"
+                }
+            }
+        },
+        "space.Space": {
+            "type": "object",
+            "properties": {
+                "collaborators": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/space.CollaboratorInfo"
+                    }
+                },
+                "collaboratorsMap": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "maxItems": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerId": {
+                    "type": "string"
+                },
+                "retentionDays": {
+                    "type": "integer"
+                },
+                "type": {
+                    "description": "public 或 private",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "space.SpaceResponse": {
+            "type": "object",
+            "properties": {
+                "space": {
+                    "$ref": "#/definitions/space.Space"
+                }
+            }
+        },
+        "space.SpaceStatsResponse": {
+            "type": "object",
+            "properties": {
+                "clipsCount": {
+                    "type": "integer"
+                },
+                "ownerUsername": {
+                    "type": "string"
+                }
+            }
+        },
+        "space.UpdateCollaboratorPermissionsRequest": {
+            "type": "object",
+            "required": [
+                "collaboratorId",
+                "permission"
+            ],
+            "properties": {
+                "collaboratorId": {
+                    "type": "string"
+                },
+                "permission": {
+                    "type": "string",
+                    "enum": [
+                        "edit",
+                        "view"
+                    ]
+                }
+            }
+        },
+        "space.UpdateSpaceRequest": {
+            "type": "object",
+            "required": [
+                "collaborators"
+            ],
+            "properties": {
+                "collaborators": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/space.CollaboratorInfo"
+                    }
+                },
+                "maxItems": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
+                "retentionDays": {
+                    "type": "integer"
+                }
+            }
+        },
+        "space.UpdateSpaceSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "maxItems": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
+                "retentionDays": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "visibility": {
+                    "type": "string",
+                    "enum": [
+                        "public",
+                        "private"
+                    ]
+                }
+            }
+        },
+        "space.ValidateInviteRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "space.VerifyInviteTokenResponse": {
+            "type": "object",
+            "properties": {
+                "inviterName": {
+                    "type": "string"
+                },
+                "isCollaborator": {
+                    "type": "boolean"
+                },
+                "permission": {
+                    "type": "string"
+                },
+                "spaceId": {
+                    "type": "string"
+                },
+                "spaceName": {
+                    "type": "string"
+                }
+            }
+        },
         "token.CreateTokenRequest": {
             "type": "object",
             "required": [
-                "description",
-                "expiry_days"
+                "description"
             ],
             "properties": {
                 "description": {
                     "type": "string",
                     "maxLength": 100
                 },
-                "expiry_days": {
-                    "type": "integer",
-                    "maximum": 3650,
-                    "minimum": 1
+                "expiryDays": {
+                    "type": "integer"
                 }
             }
         },
@@ -838,7 +1725,7 @@
                 "token": {
                     "type": "string"
                 },
-                "token_info": {
+                "tokenInfo": {
                     "$ref": "#/definitions/token.Token"
                 }
             }
@@ -846,7 +1733,7 @@
         "token.ListTokensResponse": {
             "type": "object",
             "properties": {
-                "max_items": {
+                "maxItems": {
                     "type": "integer"
                 },
                 "tokens": {
@@ -860,25 +1747,25 @@
         "token.Token": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "createdAt": {
                     "type": "string"
                 },
                 "description": {
                     "type": "string"
                 },
-                "expires_at": {
+                "expiresAt": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "last_used_at": {
+                "lastUsedAt": {
                     "type": "string"
                 },
                 "token": {
                     "type": "string"
                 },
-                "user_id": {
+                "userId": {
                     "type": "string"
                 }
             }
@@ -901,7 +1788,7 @@
         "token.TokenLoginResponse": {
             "type": "object",
             "properties": {
-                "jwt_token": {
+                "jwtToken": {
                     "type": "string"
                 },
                 "user": {

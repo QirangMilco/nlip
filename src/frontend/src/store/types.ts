@@ -177,7 +177,7 @@ export interface Token {
 // 创建Token请求参数
 export interface CreateTokenRequest {
   description: string;
-  expiresAt?: string; // ISO格式日期字符串
+  expiryDays?: number;
 }
 
 // 创建Token响应

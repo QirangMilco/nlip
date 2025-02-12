@@ -10,6 +10,7 @@ import { clearAuth } from '@/store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '@/pages/sidebar/Sidebar';
 import { RootState } from '@/store';
+import { copyToClipboard } from '@/utils/clipboard';
 
 
 const Settings: React.FC = () => {
@@ -32,8 +33,8 @@ const Settings: React.FC = () => {
       setLoading(true);
       try {
         const res = await listTokens();
-        setTokens(res.tokens);
-        setMaxTokens(res.maxItems);
+        setTokens(res.tokens || []);
+        setMaxTokens(res.maxItems || 0);
       } catch (error) {
         message.error('获取Token列表失败');
       } finally {
@@ -69,12 +70,11 @@ const Settings: React.FC = () => {
       message.error(`已达到最大Token数量限制（${maxTokens}个）`);
       return;
     }
-
     try {
       setLoading(true);
       const res = await createToken({
         description: values.description,
-        expiresAt: values.isNeverExpire ? null : values.expiresAt?.[1]?.toISOString() || undefined
+        expiryDays: values.isNeverExpire ? null : values.expireDays
       });
       setTokens([...tokens, {
         id: res.tokenInfo.id,
@@ -86,6 +86,7 @@ const Settings: React.FC = () => {
       }]);
       message.success('Token创建成功');
       form.resetFields();
+      setIsTokenModalVisible(false);
     } catch (error) {
       message.error('创建Token失败');
     } finally {
@@ -105,11 +106,13 @@ const Settings: React.FC = () => {
 
   const handleCopyToken = async (tokenId: string) => {
     try {
-        const res = await getToken(tokenId);
-        await navigator.clipboard.writeText(res.token);
-        message.success('Token已复制到剪贴板');
+      const res = await getToken(tokenId);
+      await copyToClipboard(
+        res.token,
+        () => message.success('Token已复制到剪贴板')
+      );
     } catch (err) {
-        message.error('复制失败');
+      message.error('复制失败');
     }
   };
 
@@ -123,13 +126,13 @@ const Settings: React.FC = () => {
       title: 'Token',
       dataIndex: 'token',
       key: 'token',
-      render: (text: string) => {
-        const visibleLength = 4;
-        const masked = text.slice(0, visibleLength) + '*'.repeat(text.length - visibleLength * 2) + text.slice(-visibleLength);
+      render: (text: string, record: Token) => {
+        // const visibleLength = 4;
+        // const masked = text.slice(0, visibleLength) + '*'.repeat(text.length - visibleLength * 2) + text.slice(-visibleLength);
         return (
           <Space>
-            <span>{masked}</span>
-            <Button type="link" onClick={() => handleCopyToken(text)}>
+            <span>{text}</span>
+            <Button type="link" onClick={() => handleCopyToken(record.id)}>
               复制
             </Button>
           </Space>

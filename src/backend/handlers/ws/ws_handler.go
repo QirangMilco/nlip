@@ -14,6 +14,15 @@ type WSMessage struct {
     Timestamp int64       `json:"timestamp"`
 }
 
+// HandleWebSocket 处理WebSocket连接
+// @Summary WebSocket连接
+// @Description 建立WebSocket连接并进行消息通信
+// @Tags WebSocket
+// @Param token query string true "认证Token"
+// @Success 101 "Switching Protocols"
+// @Failure 400 {object} string "缺少Token参数"
+// @Failure 401 {object} string "Token验证失败"
+// @Router /api/v1/nlip/ws [get]
 func HandleWebSocket(c *websocket.Conn) {
     // 获取token
     token := c.Query("token")

@@ -50,6 +50,8 @@ go.sum
 .nuxt/
 .vuepress/dist
 
+.parcel-cache
+
 # 其他
 *.bak
 *.backup

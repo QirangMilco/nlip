@@ -15,7 +15,7 @@ import (
 // HandleCreateToken 创建新的访问Token
 // @Summary 创建Token
 // @Description 为用户创建新的访问Token，可用于API认证
-// @Tags Token管理
+// @Tags Token
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -52,7 +52,7 @@ func HandleCreateToken(c *fiber.Ctx) error {
 	}
 
 	var expiresAt *time.Time
-	if req.ExpiryDays != nil {
+	if req.ExpiryDays != nil && *req.ExpiryDays >= 1 && *req.ExpiryDays <= 3650 {
 		exp := time.Now().AddDate(0, 0, *req.ExpiryDays)
 		expiresAt = &exp
 	} 
@@ -98,7 +98,7 @@ func HandleCreateToken(c *fiber.Ctx) error {
 // HandleListTokens 获取Token列表
 // @Summary 获取Token列表
 // @Description 获取当前用户的所有Token列表
-// @Tags Token管理
+// @Tags Token
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -110,7 +110,7 @@ func HandleListTokens(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 
 	rows, err := config.DB.Query(`
-		SELECT id, token, description, created_at, expires_at, last_used_at
+		SELECT id, user_id, token, description, created_at, expires_at, last_used_at
 		FROM nlip_tokens
 		WHERE user_id = ?
 		ORDER BY created_at DESC
@@ -126,7 +126,7 @@ func HandleListTokens(c *fiber.Ctx) error {
 	for rows.Next() {
 		var t token.Token
 		var fullToken string
-		if err := rows.Scan(&t.ID, &fullToken, &t.Description, &t.CreatedAt, &t.ExpiresAt, &t.LastUsedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.UserID, &fullToken, &t.Description, &t.CreatedAt, &t.ExpiresAt, &t.LastUsedAt); err != nil {
 			logger.Error("扫描token数据失败: %v", err)
 			continue
 		}
@@ -152,7 +152,7 @@ func HandleListTokens(c *fiber.Ctx) error {
 // HandleRevokeToken 撤销Token
 // @Summary 撤销Token
 // @Description 撤销指定的Token，使其失效
-// @Tags Token管理
+// @Tags Token
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -164,13 +164,13 @@ func HandleListTokens(c *fiber.Ctx) error {
 // @Router /api/v1/nlip/tokens/{id} [delete]
 func HandleRevokeToken(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
-	tokenID := c.Params("id")
+	tokenID := c.Params("tokenId")
 
 	result, err := config.DB.Exec(`
 		DELETE FROM nlip_tokens
 		WHERE id = ? AND user_id = ?
 	`, tokenID, userID)
-
+	
 	if err != nil {
 		logger.Error("删除token失败: %v", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "删除token失败")

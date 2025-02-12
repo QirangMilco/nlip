@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Form, Input, Select, message, Typography } from 'antd';
 import { inviteCollaborator } from '@/api/spaces';
 import { CopyOutlined } from '@ant-design/icons';
+import { copyToClipboard } from '@/utils/clipboard';
 
 const { Text } = Typography;
 
@@ -40,9 +41,15 @@ const InviteCollaboratorModal: React.FC<InviteCollaboratorModalProps> = ({
     }
   };
 
-  const copyInviteLink = () => {
-    navigator.clipboard.writeText(inviteLink);
-    message.success('邀请链接已复制');
+  const copyInviteLink = async () => {
+    try {
+      await copyToClipboard(
+        inviteLink,
+        () => message.success('邀请链接已复制')
+      );
+    } catch (err) {
+      message.error('复制链接失败');
+    }
   };
 
   return (

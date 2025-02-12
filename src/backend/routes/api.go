@@ -58,7 +58,7 @@ func setupV1Routes(api fiber.Router) {
 		authHandler.HandleChangePassword)
 
 	// 用户token相关路由
-	tokenRoutes := authenticated.Group("/token")
+	tokenRoutes := authenticated.Group("/tokens")
 	tokenRoutes.Post("/create", validator.ValidateBody(&token.CreateTokenRequest{}), authHandler.HandleCreateToken)
 	tokenRoutes.Get("/list", authHandler.HandleListTokens)
 	tokenRoutes.Delete("/:tokenId", authHandler.HandleRevokeToken)

@@ -198,7 +198,7 @@ func scanSingleClip(row *sql.Row) (*clip.Clip, error) {
 // HandleUploadClip 处理上传剪贴板内容
 // @Summary 上传Clip
 // @Description 上传剪贴板内容
-// @Tags Clip管理
+// @Tags 剪贴板
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -227,7 +227,7 @@ func HandleUploadClip(c *fiber.Ctx) error {
 	}
 
 	if req.SpaceID != s.ID {
-		return fiber.NewError(fiber.StatusBadRequest, "空间ID不匹配")
+		return fiber.NewError(fiber.StatusBadRequest, "空间ID不匹配，req.SpaceID="+req.SpaceID+", s.ID="+s.ID)
 	}
 
 	var err error
@@ -357,12 +357,10 @@ func HandleUploadClip(c *fiber.Ctx) error {
 // HandleListClips 获取剪贴板内容列表
 // @Summary 获取Clip列表
 // @Description 获取当前用户的Clip列表
-// @Tags Clip管理
+// @Tags 剪贴板
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param page query int false "页码" default(1)
-// @Param pageSize query int false "每页数量" default(20)
 // @Success 200 {object} clip.ListClipsResponse "获取成功"
 // @Failure 401 {object} string "未授权"
 // @Failure 500 {object} string "服务器内部错误"
@@ -408,7 +406,7 @@ func HandleListClips(c *fiber.Ctx) error {
 // HandleGetClip 获取单个剪贴板内容
 // @Summary 获取Clip详情
 // @Description 根据ID获取单个Clip的详细信息
-// @Tags Clip管理
+// @Tags 剪贴板
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -467,7 +465,7 @@ func HandleGetClip(c *fiber.Ctx) error {
 // HandleDeleteClip 删除剪贴板内容
 // @Summary 删除Clip
 // @Description 删除指定的Clip
-// @Tags Clip管理
+// @Tags 剪贴板
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -531,7 +529,7 @@ func HandleDeleteClip(c *fiber.Ctx) error {
 // HandleUpdateClip 处理更新剪贴板内容
 // @Summary 更新Clip
 // @Description 更新指定Clip的信息
-// @Tags Clip管理
+// @Tags 剪贴板
 // @Accept json
 // @Produce json
 // @Security BearerAuth

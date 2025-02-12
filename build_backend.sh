@@ -39,7 +39,7 @@ cp -r $NLIP_FRONTEND_DIR/dist $NLIP_BACKEND_DIR/static
 echo "Building backend"
 cd $NLIP_BACKEND_DIR
 
-# 生成swagger文档
+生成swagger文档
 echo "Generating API documentation"
 swag init
 if [ $? -ne 0 ]; then

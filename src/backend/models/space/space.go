@@ -97,3 +97,9 @@ type CollaboratorInfo struct {
 type ListCollaboratorsResponse struct {
 	Collaborators []CollaboratorInfo `json:"collaborators"`
 }
+
+// SpaceStatsResponse 空间统计信息
+type SpaceStatsResponse struct {
+	ClipsCount     int    `json:"clipsCount"`
+	OwnerUsername  string `json:"ownerUsername"`
+}
