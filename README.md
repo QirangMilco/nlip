@@ -31,7 +31,7 @@ A lightweight network clipboard system **implemented by Cursor** that supports t
 ## Features
 
 ### Core Features
-- **Multi-platform Support**: Web, Browser Extension, Mobile App
+- **Multi-platform Support**: Web, Browser Extension, Mobile App, Desktop Application
 - **Content Sharing**: Seamless text and file sharing
 - **Space Management**: 
   - Space-based content organization
