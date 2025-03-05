@@ -4,8 +4,6 @@
 
 一个**由Cursor实现的**支持跨平台文本和文件共享的轻量级网络剪贴板系统。[客户端下载](https://github.com/QirangMilco/nlip-app/releases)
 
-客户端
-
 <p align="center">
   <img src="docs/images/logo.png" alt="Nlip Logo" width="200"/>
   <br>
