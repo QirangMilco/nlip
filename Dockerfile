@@ -4,6 +4,8 @@ WORKDIR /frontend-build
 
 COPY src/frontend .
 
+# 解决corepack integrity check失败的问题
+ENV COREPACK_INTEGRITY_KEYS=0
 RUN corepack enable && pnpm i --frozen-lockfile
 
 RUN pnpm build
