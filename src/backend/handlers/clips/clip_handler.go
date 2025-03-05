@@ -403,6 +403,62 @@ func HandleListClips(c *fiber.Ctx) error {
 	})
 }
 
+
+// HandleGetLastClip 获取最近修改的剪贴板
+// @Summary 获取最近修改的Clip
+// @Description 获取最近修改的Clip
+// @Tags 剪贴板
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} clip.ClipResponse "获取成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "服务器内部错误"
+// @Router /api/v1/nlip/clips/last [get]
+func HandleGetLastClip(c *fiber.Ctx) error {
+	s := c.Locals("space").(space.Space)
+	isDownload := c.Query("download") == "true"
+	return db.WithTransaction(config.DB, func(tx *sql.Tx) error {
+
+		// 使用通用查询语句
+		row := tx.QueryRow(
+			selectClipWithCreatorSQL+
+				"WHERE c.space_id = ? ORDER BY c.updated_at DESC LIMIT 1",
+			s.ID,
+		)
+
+		cl, err := scanSingleClip(row)
+		if err == sql.ErrNoRows {
+			return fiber.NewError(fiber.StatusNotFound, ErrClipNotFound)
+		} else if err != nil {
+			logger.Error("获取剪贴板内容失败: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "获取剪贴板内容失败")
+		}
+
+		if cl.FilePath != "" && isDownload {
+			data, err := storage.GetFile(cl.FilePath)
+			if err != nil {
+				logger.Error("读取文件失败: %v", err)
+				return fiber.NewError(fiber.StatusInternalServerError, "读取文件失败")
+			}
+
+			c.Set("Content-Type", cl.ContentType)
+			c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`,
+				filepath.Base(cl.FilePath)))
+
+			return c.Send(data)
+		}
+
+		return c.JSON(fiber.Map{
+			"code":    fiber.StatusOK,
+			"message": "获取成功",
+			"data": clip.ClipResponse{
+				Clip: cl,
+			},
+		})
+	})
+}
+
 // HandleGetClip 获取单个剪贴板内容
 // @Summary 获取Clip详情
 // @Description 根据ID获取单个Clip的详细信息

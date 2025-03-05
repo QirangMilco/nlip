@@ -735,6 +735,31 @@ paths:
       summary: 更新Clip
       tags:
       - 剪贴板
+  /api/v1/nlip/clips/last:
+    get:
+      consumes:
+      - application/json
+      description: 获取最近修改的Clip
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/clip.ClipResponse'
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取最近修改的Clip
+      tags:
+      - 剪贴板
   /api/v1/nlip/spaces/{id}:
     delete:
       description: 删除空间及其所有内容，普通用户只能删除自己拥有的私有空间，管理员可以删除所有空间

@@ -122,29 +122,42 @@ func HandleListTokens(c *fiber.Ctx) error {
 	}
 	defer rows.Close()
 
-	var tokens []token.Token
+	var tokens []*token.Token
 	for rows.Next() {
 		var t token.Token
 		var fullToken string
-		if err := rows.Scan(&t.ID, &t.UserID, &fullToken, &t.Description, &t.CreatedAt, &t.ExpiresAt, &t.LastUsedAt); err != nil {
+		var expiresAt sql.NullTime
+		var lastUsedAt sql.NullTime
+		
+		if err := rows.Scan(&t.ID, &t.UserID, &fullToken, &t.Description, &t.CreatedAt, &expiresAt, &lastUsedAt); err != nil {
 			logger.Error("扫描token数据失败: %v", err)
 			continue
 		}
+		
+		// 处理可能为NULL的时间值
+		if expiresAt.Valid {
+			t.ExpiresAt = &expiresAt.Time
+		}
+		
+		if lastUsedAt.Valid {
+			t.LastUsedAt = &lastUsedAt.Time
+		}
+		
 		// 处理token显示
 		if len(fullToken) > 8 {
 			t.Token = fullToken[:4] + "****" + fullToken[len(fullToken)-4:]
 		} else {
 			t.Token = "****" // 对于过短的token直接显示****
 		}
-		tokens = append(tokens, t)
+		tokens = append(tokens, &t)
 	}
 
 	return c.JSON(fiber.Map{
 		"code":    fiber.StatusOK,
 		"message": "获取token列表成功",
-		"data":    fiber.Map{
-			"tokens": tokens,
-			"maxItems": config.AppConfig.Token.MaxItems,
+		"data": token.ListTokensResponse{
+			Tokens: tokens,
+			MaxItems: config.AppConfig.Token.MaxItems,
 		},
 	})
 }

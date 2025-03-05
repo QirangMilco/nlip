@@ -15,7 +15,7 @@
 		"process": "^0.11.10"
 	},
 	"scripts": {
-		"build": "parcel build popup.js --public-url ./ --no-source-maps && cp manifest.json popup.html background.js icon-128.png dist/"
+		"build": "parcel build popup.js background.js --public-url ./ --no-source-maps && cp manifest.json popup.html icon-128.png dist/"
 	},
 	"browserslist": [
 		"last 3 Chrome versions"

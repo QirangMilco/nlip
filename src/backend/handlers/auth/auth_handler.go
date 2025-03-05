@@ -7,7 +7,7 @@ import (
 	"nlip/models/user"
 	"nlip/utils/jwt"
 	"nlip/utils/logger"
-
+	"time"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -300,7 +300,7 @@ func HandleTokenLogin(c *fiber.Ctx) error {
 	}
 
 	// 更新最后使用时间
-	_, err = config.DB.Exec("UPDATE nlip_tokens SET last_used_at = strftime('%s', 'now') WHERE id = ?", tokenID)
+	_, err = config.DB.Exec("UPDATE nlip_tokens SET last_used_at = ? WHERE id = ?", time.Now(), tokenID)
 	if err != nil {
 		logger.Error("更新token最后使用时间失败: %v", err)
 	}

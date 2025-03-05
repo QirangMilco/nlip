@@ -102,6 +102,7 @@ func setupV1Routes(api fiber.Router) {
 	// 剪贴板路由 - 所有操作都需要验证
 	clipRoutes := spaceRoutes.Group("/:spaceId/clips")
 	clipRoutes.Get("/list", clips.HandleListClips)
+	clipRoutes.Get("/last", clips.HandleGetLastClip)
 	clipRoutes.Get("/:clipId", clips.HandleGetClip)
 	clipRoutes.Post("/upload",
 		validator.ValidateBody(&clip.UploadClipRequest{}),
