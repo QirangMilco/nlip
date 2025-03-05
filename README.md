@@ -2,7 +2,7 @@
 
 English | [简体中文](./README_zh.md)
 
-A lightweight network clipboard system **implemented by Cursor** that supports text and file sharing across multiple platforms.
+A lightweight network clipboard system **implemented by Cursor** that supports text and file sharing across multiple platforms. [Download Client](https://github.com/QirangMilco/nlip-app/releases)
 
 <p align="center">
   <img src="docs/images/logo.png" alt="Nlip Logo" width="200"/>
